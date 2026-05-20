@@ -33,11 +33,9 @@ func (s *Store) CreateCategory(ctx context.Context, name string) error{
 		if err!=nil{
 			return err
 		}
-		err2 := tx.Create(&CategoryAttributeAssignment{
-			CategoryID:category.ID,
-			AttributeID: 0,
-		}).Error
-		return err2
+		// Do not create a CategoryAttributeAssignment with AttributeID 0
+		// (was causing FK violations because attribute id 0 does not exist).
+		return nil
 	})
 	return err
 }

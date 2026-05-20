@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"calculationengine/constants"
 	"calculationengine/router"
 	// "calculationengine/service/evaluator"
@@ -17,7 +18,9 @@ import (
 func main(){
 	constants.Load()
 	storage.Connect()
-	// storage.AutoMigrate()
+	if err := storage.AutoMigrate(); err != nil {
+		log.Fatalln("AutoMigrate failed:", err)
+	}
 
 	//^Manual Test golang scanner only
 	// var s scanner.Scanner
