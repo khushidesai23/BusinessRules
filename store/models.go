@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"log"
 	"time"
 )
 type JSONB  map[string]any
@@ -16,9 +17,9 @@ type Attribute struct{
 
 type Formulas struct{
 	CategoryID uint `gorm:"primaryKey"`
-	Category CategoryAttributeAssignment `gorm:"foreignKey:CategoryID; references:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Category Category `gorm:"foreignKey:CategoryID; references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	TargetAttributeID uint `gorm:"primaryKey"`
-	Attribute CategoryAttributeAssignment `gorm:"foreignKey:TargetAttributeID; references:AttributeID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	TargetAttribute Attribute `gorm:"foreignKey:TargetAttributeID; references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	Expression string
 	CreatedAt time.Time `gorm:"autoCreateTime" json:",omitempty"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:",omitempty"`
@@ -27,18 +28,15 @@ type Formulas struct{
 
 type FormulaDependencies struct{
 	CategoryID uint `gorm:"primaryKey"`
-	Category Formulas `gorm:"foreignKey:CategoryID; references:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	TargetAttributeID uint `gorm:"primaryKey"`
-	TargetAttribute Formulas `gorm:"foreignKey:TargetAttributeID; references:TargetAttributeID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	DependentAttributeID uint `gorm:"primaryKey"`
-	DependentAttribute Attribute `gorm:"foreignKey:DependentAttributeID; references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	CreatedAt time.Time `gorm:"autoCreateTime" json:",omitempty"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:",omitempty"`
 	DeletedAt *time.Time `gorm:"index" json:",omitempty"`
 }
 
 type Category struct{
-	ID uint `grom:"primaryKey;autoIncrement" json:",omitempty"`
+	ID uint `gorm:"primaryKey;autoIncrement" json:",omitempty"`
 	Path string `gorm:"uniqueIndex; not null"`
 	CreatedAt time.Time `gorm:"autoCreateTime" json:",omitempty"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:",omitempty"`
@@ -58,11 +56,11 @@ type CategoryAttributeAssignment struct {
 }
 
 type Product struct{
-	ID string `grom:"primaryKey" json:",omitempty"`
+	ID string `gorm:"primaryKey" json:",omitempty"`
 	CategoryID uint `gorm:"primaryKey"`
-	Category CategoryAttributeAssignment `gorm:"foreignKey:CategoryID; references:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Category Category `gorm:"foreignKey:CategoryID; references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	AttributeID uint `gorm:"primaryKey"`
-	Attribute CategoryAttributeAssignment `gorm:"foreignKey:AttributeID; references:ID; constraint:OnUpdate:CASCADE, OnDelete:CASCADE"`
+	Attribute Attribute `gorm:"foreignKey:AttributeID; references:ID; constraint:OnUpdate:CASCADE, OnDelete:CASCADE"`
 	Data string
 	CreatedAt time.Time `gorm:"autoCreateTime" json:",omitempty"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:",omitempty"`
@@ -75,8 +73,50 @@ type ApiResponse struct{
 }
 
 
-func AutoMigrate(){
-	// DB.AutoMigrate(&Attribute{}, &Category{}, &Formulas{}, &CategoryAttributeAssignment{}, &Product{}, &FormulaDependencies{})
-	DB.AutoMigrate(&Product{})
+func AutoMigrate() error {
+	if err := DB.AutoMigrate(&Attribute{}); err != nil {
+		return err
+	}
+	if err := DB.AutoMigrate(&Category{}); err != nil {
+		return err
+	}
+	if !DB.Migrator().HasTable(&CategoryAttributeAssignment{}) {
+		if err := DB.Migrator().CreateTable(&CategoryAttributeAssignment{}); err != nil {
+			log.Printf("AutoMigrate: failed to create category_attribute_assignments: %v", err)
+			return err
+		}
+	}
+	// Ensure columns exist on join table (added after initial schema)
+	if DB.Migrator().HasTable(&CategoryAttributeAssignment{}) {
+		if !DB.Migrator().HasColumn(&CategoryAttributeAssignment{}, "TopologicalSortOrder") {
+			if err := DB.Migrator().AddColumn(&CategoryAttributeAssignment{}, "TopologicalSortOrder"); err != nil {
+				log.Printf("AutoMigrate: failed to add column TopologicalSortOrder: %v", err)
+				return err
+			}
+		}
+		// ensure timestamp columns exist (use raw SQL to avoid GORM naming mismatches)
+		if err := DB.Exec("ALTER TABLE category_attribute_assignments ADD COLUMN IF NOT EXISTS created_at timestamptz").Error; err != nil {
+			log.Printf("AutoMigrate: failed to add column created_at: %v", err)
+			return err
+		}
+		if err := DB.Exec("ALTER TABLE category_attribute_assignments ADD COLUMN IF NOT EXISTS updated_at timestamptz").Error; err != nil {
+			log.Printf("AutoMigrate: failed to add column updated_at: %v", err)
+			return err
+		}
+		if err := DB.Exec("ALTER TABLE category_attribute_assignments ADD COLUMN IF NOT EXISTS deleted_at timestamptz").Error; err != nil {
+			log.Printf("AutoMigrate: failed to add column deleted_at: %v", err)
+			return err
+		}
+	}
+	if err := DB.AutoMigrate(&Formulas{}); err != nil {
+		return err
+	}
+	if err := DB.AutoMigrate(&FormulaDependencies{}); err != nil {
+		return err
+	}
+	if err := DB.AutoMigrate(&Product{}); err != nil {
+		return err
+	}
+	return nil
 }
 
