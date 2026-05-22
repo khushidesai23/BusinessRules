@@ -21,40 +21,39 @@ const (
 )
 
 var precedences = map[TokenType]int{
-	EQ: EQUAL,
-	NOT_EQ:EQUAL,
-	LT:LESSGREATER,
-	GT:LESSGREATER,
-	PLUS:SUM,
-	MINUS:SUM,
-	ASTERISK:PRODUCT,
-	SLASH:DIVISION,
+	EQ:       EQUAL,
+	NOT_EQ:   EQUAL,
+	LT:       LESSGREATER,
+	GT:       LESSGREATER,
+	PLUS:     SUM,
+	MINUS:    SUM,
+	ASTERISK: PRODUCT,
+	SLASH:    DIVISION,
 	// LPAREN:PAREN,
 	// RPAREN:PAREN,
 }
 
 type Parser struct {
-	l *Lexer
+	l      *Lexer
 	errors []string
 
 	currentToken Token
-	peekToken Token
+	peekToken    Token
 
 	prefixParseFns map[TokenType]prefixParseFn
-	infixParseFns map[TokenType]infixParseFn
-
+	infixParseFns  map[TokenType]infixParseFn
 }
 
-func (p *Parser) registerPrefixFunction(tokenType TokenType, fn prefixParseFn){
+func (p *Parser) registerPrefixFunction(tokenType TokenType, fn prefixParseFn) {
 	p.prefixParseFns[tokenType] = fn
 }
 
-func (p *Parser) registerInfixFunction(tokenType TokenType, fn infixParseFn){
+func (p *Parser) registerInfixFunction(tokenType TokenType, fn infixParseFn) {
 	p.infixParseFns[tokenType] = fn
 }
 
-func NewParser(l *Lexer) *Parser{
-	p := &Parser{l:l, errors: []string{}}
+func NewParser(l *Lexer) *Parser {
+	p := &Parser{l: l, errors: []string{}}
 	p.prefixParseFns = make(map[TokenType]prefixParseFn)
 	p.infixParseFns = make(map[TokenType]infixParseFn)
 
@@ -88,7 +87,7 @@ func (p *Parser) parseIdentifier() Expression {
 func (p *Parser) parseIntegerLiteral() Expression {
 	lit := &IntegerLiteral{Token: p.currentToken}
 	value, err := strconv.Atoi(p.currentToken.TokenValue)
-	if err!=nil {
+	if err != nil {
 		msg := fmt.Sprintf("Cannot parse %q as Integer", p.currentToken.TokenValue)
 		p.errors = append(p.errors, msg)
 		return nil
@@ -100,7 +99,7 @@ func (p *Parser) parseIntegerLiteral() Expression {
 func (p *Parser) parseFloatLiteral() Expression {
 	lit := &FloatLiteral{Token: p.currentToken}
 	value, err := strconv.ParseFloat(p.currentToken.TokenValue, 64)
-	if err!=nil {
+	if err != nil {
 		msg := fmt.Sprintf("Cannot parse %q as Float", p.currentToken.TokenValue)
 		p.errors = append(p.errors, msg)
 		return nil
@@ -128,7 +127,7 @@ func (p *Parser) parseBoolean() Expression {
 	return lit
 }
 
-func (p *Parser) nextToken(){
+func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	p.peekToken = p.l.NextToken()
 }
@@ -164,10 +163,10 @@ func (p *Parser) peekError(t TokenType) {
 	p.errors = append(p.errors, msg)
 }
 
-func (p *Parser) parseStatement() Statement{
+func (p *Parser) parseStatement() Statement {
 	switch p.currentToken.TokenType {
-		default:
-			return p.parseExpressionStatement()
+	default:
+		return p.parseExpressionStatement()
 	}
 }
 
@@ -175,7 +174,7 @@ func (p *Parser) parseExpressionStatement() *ExpressionStatement {
 	stmt := &ExpressionStatement{Token: p.currentToken}
 	stmt.Expression = p.parseExpression(LOWEST)
 
-	if(p.peekTokenIs(EOF)){
+	if p.peekTokenIs(EOF) {
 		p.nextToken()
 	}
 	return stmt
@@ -187,11 +186,11 @@ func (p *Parser) parseExpression(precedence int) Expression {
 		p.noPrefixFnParseError(p.currentToken.TokenType)
 		return nil
 	}
-	
+
 	leftExp := prefix()
 	for !p.peekTokenIs(EOF) && precedence < p.peekPrecedence() {
 		infix := p.infixParseFns[p.peekToken.TokenType]
-		if(infix==nil){
+		if infix == nil {
 			return leftExp
 		}
 
@@ -209,10 +208,10 @@ func (p *Parser) noPrefixFnParseError(t TokenType) {
 }
 
 func (p *Parser) expectPeek(t TokenType) bool {
-	if(p.peekTokenIs(t)){
+	if p.peekTokenIs(t) {
 		p.nextToken()
 		return true
-	}else {
+	} else {
 		p.peekError(t)
 		return false
 	}
@@ -220,7 +219,7 @@ func (p *Parser) expectPeek(t TokenType) bool {
 
 func (p *Parser) parsePrefixExpression() Expression {
 	expression := &PrefixExpression{
-		Token: p.currentToken,
+		Token:    p.currentToken,
 		Operator: p.currentToken.TokenValue,
 	}
 	p.nextToken()
@@ -229,9 +228,9 @@ func (p *Parser) parsePrefixExpression() Expression {
 }
 
 func (p *Parser) parseIfExpression() Expression {
-	expression := &IfExpression{ Token:p.currentToken }
+	expression := &IfExpression{Token: p.currentToken}
 
-	if(!p.expectPeek(LPAREN)){
+	if !p.expectPeek(LPAREN) {
 		return nil
 	}
 
@@ -239,7 +238,7 @@ func (p *Parser) parseIfExpression() Expression {
 
 	expression.Condition = p.parseExpression(LOWEST)
 
-	if(!p.expectPeek(COMMA)){
+	if !p.expectPeek(COMMA) {
 		return nil
 	}
 
@@ -247,8 +246,8 @@ func (p *Parser) parseIfExpression() Expression {
 
 	expression.Consequence = p.parseExpression(LOWEST)
 
-	if(!p.peekTokenIs(COMMA)){
-		if(!p.expectPeek(RPAREN)){
+	if !p.peekTokenIs(COMMA) {
+		if !p.expectPeek(RPAREN) {
 			return nil
 		}
 		p.nextToken()
@@ -268,9 +267,9 @@ func (p *Parser) parseIfExpression() Expression {
 
 func (p *Parser) parseInfixExpression(left Expression) Expression {
 	expression := &InfixExpression{
-		Token: p.currentToken,
+		Token:    p.currentToken,
 		Operator: p.currentToken.TokenValue,
-		Left:left,
+		Left:     left,
 	}
 	precedence := p.curPrecedence()
 	p.nextToken()
@@ -280,10 +279,10 @@ func (p *Parser) parseInfixExpression(left Expression) Expression {
 
 func (p *Parser) parseGroupedExpression() Expression {
 	p.nextToken()
-	
+
 	exp := p.parseExpression(LOWEST)
-	
-	if !p.expectPeek(RPAREN){
+
+	if !p.expectPeek(RPAREN) {
 		return nil
 	}
 
@@ -307,5 +306,5 @@ func (p *Parser) curPrecedence() int {
 
 type (
 	prefixParseFn func() Expression
-	infixParseFn func(Expression) Expression 
+	infixParseFn  func(Expression) Expression
 )
