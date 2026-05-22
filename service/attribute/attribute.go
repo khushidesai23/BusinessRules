@@ -12,22 +12,22 @@ import (
 func CreateAttribute(ctx context.Context, request models.CreateAttributeRequest) (*storage.ApiResponse, error) {
 	result := gorm.WithResult()
 
-	createObject := &storage.Attribute{Name:request.Name, DataType: request.DataType}
+	createObject := &storage.Attribute{Name: request.Name, DataType: request.DataType}
 
 	err := gorm.G[storage.Attribute](storage.DB, result).Create(ctx, createObject)
-	if err!=nil{
-		return &storage.ApiResponse{Message:"Something Went Wrong", Data:[]any{}}, err
+	if err != nil {
+		return &storage.ApiResponse{Message: "Something Went Wrong", Data: []any{}}, err
 	}
-	return &storage.ApiResponse{Message:"success", Data:[]any{}}, nil
+	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
 
 func GetAllAttributes(ctx context.Context) (*models.GetAllAttributesResponse, error) {
-	response :=  models.GetAllAttributesResponse{
+	response := models.GetAllAttributesResponse{
 		Message: constants.SUCCESS,
 	}
 	store := storage.NewStore(storage.DB)
 	result, err := store.GetAllAttributes(ctx)
-	if err!=nil{
+	if err != nil {
 		response.Message = "Something went wrong"
 		return &response, nil
 	}
@@ -36,12 +36,12 @@ func GetAllAttributes(ctx context.Context) (*models.GetAllAttributesResponse, er
 }
 
 func GetCategoryWiseCommonAttributes(ctx context.Context, request models.GetCategoryWiseCommonAttributesRequest) (*models.GetCategoryWiseCommonAttributesResponse, error) {
-	response :=  models.GetCategoryWiseCommonAttributesResponse{
+	response := models.GetCategoryWiseCommonAttributesResponse{
 		Message: constants.SUCCESS,
 	}
 	store := storage.NewStore(storage.DB)
 	result, err := store.GetCategoryWiseCommonAttributes(ctx, request)
-	if err!=nil{
+	if err != nil {
 		response.Message = "Something went wrong"
 		return &response, nil
 	}
@@ -52,9 +52,8 @@ func GetCategoryWiseCommonAttributes(ctx context.Context, request models.GetCate
 func ChangeCategoryAttributeAssignment(ctx context.Context, request models.ChangeCategoryAttributeAssignmentRequest) (*storage.ApiResponse, error) {
 	store := storage.NewStore(storage.DB)
 	err := store.ChangeCategoryAttributeAssignment(ctx, request)
-	if err!=nil{
-		return &storage.ApiResponse{Message:"Something Went Wrong", Data:[]any{}}, err
+	if err != nil {
+		return &storage.ApiResponse{Message: "Something Went Wrong", Data: []any{}}, err
 	}
-	return &storage.ApiResponse{Message:"success", Data:[]any{}}, nil
+	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
-

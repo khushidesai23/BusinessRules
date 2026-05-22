@@ -13,6 +13,7 @@ export default function ProductDetailsPage() {
     const [error, setError] = useState('');
 
     const [productData, setProductData] = useState([]);
+    const [productName, setProductName] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [categories, setCategories] = useState([]);
 
@@ -43,6 +44,9 @@ export default function ProductDetailsPage() {
                 dataType: item.dataType,
                 value: item.data !== undefined ? item.data : ''
             }));
+            // extract product name if attributeId == 0
+            const nameField = res.data.find(d => d.attributeId === 0);
+            if (nameField && nameField.data) setProductName(nameField.data);
             setProductData(initialData);
             setError('');
         } else {
@@ -90,10 +94,14 @@ export default function ProductDetailsPage() {
         }
 
         setSaving(true);
-        const apiData = productData.map(item => ({
-            attributeId: item.attributeId,
-            value: item.value.toString()
-        }));
+        const apiData = [
+            // include product name as attributeId 0
+            { attributeId: 0, value: productName },
+            ...productData.map(item => ({
+                attributeId: item.attributeId,
+                value: item.value.toString()
+            }))
+        ];
 
         const productIdStr = isNew ? "" : id;
         const res = await ProductAPI.upsert(categoryId, productIdStr, apiData);
@@ -148,6 +156,17 @@ export default function ProductDetailsPage() {
                         </select>
                     </div>
                 )}
+
+                {/* Product name field */}
+                <div className="form-group">
+                    <label className="form-label">Product Name</label>
+                    <input
+                        type="text"
+                        className="form-input"
+                        value={productName}
+                        onChange={(e) => setProductName(e.target.value)}
+                    />
+                </div>
 
                 {!isNew && categoryId && (
                     <div className="form-group">

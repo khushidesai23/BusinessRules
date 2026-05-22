@@ -3,6 +3,7 @@ package main
 import (
 	"calculationengine/constants"
 	"calculationengine/router"
+	"log"
 	// "calculationengine/service/evaluator"
 	// "calculationengine/service/parser"
 	"calculationengine/store"
@@ -14,10 +15,12 @@ import (
 	// "text/scanner"
 )
 
-func main(){
+func main() {
 	constants.Load()
 	storage.Connect()
-	// storage.AutoMigrate()
+	if err := storage.AutoMigrate(); err != nil {
+		log.Fatalln("AutoMigrate failed:", err)
+	}
 
 	//^Manual Test golang scanner only
 	// var s scanner.Scanner
@@ -36,7 +39,6 @@ func main(){
 	// eval := evaluator.Eval(program.Statements[0])
 	// fmt.Println(eval)
 	//^ Manula Test Parser
-
 
 	router.Api()
 	router.Router.Run("0.0.0.0:3000")

@@ -32,16 +32,21 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 	for _, data := range request.ProductData {
 		value := strings.TrimSpace(data.Value)
 
-		if data.AttributeID == 0 && value != "" {
-			defaultAttributePresent = true
-		}
-		attribute, ok := attributes[data.AttributeID]
-		if !ok {
-			return &storage.ApiResponse{Message: fmt.Sprintf("Attribute %d does not exist in this category", data.AttributeID), Data: []any{}}, nil
-		}
-		validationErr := validateData(value, attribute)
-		if validationErr != nil {
-			return &storage.ApiResponse{Message: validationErr.Error(), Data: []any{}}, nil
+		if data.AttributeID == 0 {
+			// attributeId 0 is the default "product name" field; skip lookup in attributes map
+			if value != "" {
+				defaultAttributePresent = true
+			}
+			// still allow saving the value without type validation
+		} else {
+			attribute, ok := attributes[data.AttributeID]
+			if !ok {
+				return &storage.ApiResponse{Message: fmt.Sprintf("Attribute %d does not exist in this category", data.AttributeID), Data: []any{}}, nil
+			}
+			validationErr := validateData(value, attribute)
+			if validationErr != nil {
+				return &storage.ApiResponse{Message: validationErr.Error(), Data: []any{}}, nil
+			}
 		}
 		createProductParams = append(createProductParams, models.CreateProductParams{
 			ID:          id,
@@ -58,7 +63,7 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 	evaluateFormulaRequest := models.EvaluateFormulaRequest{
 		ProductID: []string{id},
 	}
-	evaluatedProductData, _:= formulas.EvaluateFormula(ctx, evaluateFormulaRequest)
+	evaluatedProductData, _ := formulas.EvaluateFormula(ctx, evaluateFormulaRequest)
 	fmt.Println(evaluatedProductData)
 	s.UpsertProduct(ctx, evaluatedProductData)
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
