@@ -37,16 +37,18 @@ export default function ProductDetailsPage() {
         const res = await ProductAPI.getById(id);
         if (res.message === 'success' && res.data && res.data.length > 0) {
             setCategoryId(res.data[0].categoryId);
-            // Constructing form data state
-            const initialData = res.data.map(item => ({
-                attributeId: item.attributeId,
-                attributeName: item.attributeName,
-                dataType: item.dataType,
-                value: item.data !== undefined ? item.data : ''
-            }));
             // extract product name if attributeId == 0
             const nameField = res.data.find(d => d.attributeId === 0);
             if (nameField && nameField.data) setProductName(nameField.data);
+            // Constructing form data state (exclude attributeId = 0 and 'name' attribute to avoid duplication)
+            const initialData = res.data
+                .filter(item => item.attributeId !== 0 && item.attributeName.toLowerCase() !== 'name')
+                .map(item => ({
+                    attributeId: item.attributeId,
+                    attributeName: item.attributeName,
+                    dataType: item.dataType,
+                    value: item.data !== undefined ? item.data : ''
+                }));
             setProductData(initialData);
             setError('');
         } else {
@@ -67,7 +69,9 @@ export default function ProductDetailsPage() {
         const res = await AssignmentAPI.getCategoryWiseCommonAttributes([selectedCatId]);
         if (res.message === 'success') {
             const assignedAttrs = (res.data || []).filter(attr => attr.assigned);
-            setProductData(assignedAttrs.map(attr => ({
+            // Filter out 'name' attribute if present (handle via productName field)
+            const filteredAttrs = assignedAttrs.filter(attr => attr.name.toLowerCase() !== 'name');
+            setProductData(filteredAttrs.map(attr => ({
                 attributeId: attr.id,
                 attributeName: attr.name,
                 dataType: attr.dataType,
@@ -126,7 +130,7 @@ export default function ProductDetailsPage() {
                 <button
                     className="btn btn-primary"
                     onClick={handleSave}
-                    disabled={saving || loading || !categoryId || !productName.trim()}
+                    disabled={saving || loading || !categoryId}
                 >
                     {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                     {saving ? 'Saving...' : 'Save Product'}
@@ -140,71 +144,55 @@ export default function ProductDetailsPage() {
                 </div>
             )}
 
-            <div className="card w-full" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-                <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Product Information</h2>
-                    
-                    {/* Category Section */}
-                    <div style={{ display: 'grid', gridTemplateColumns: isNew ? '1fr' : 'auto', gap: '1rem', marginBottom: '2rem' }}>
-                        {isNew && (
-                            <div className="form-group">
-                                <label className="form-label" style={{ fontWeight: '600' }}>Select Category *</label>
-                                <select
-                                    className="form-input"
-                                    value={categoryId}
-                                    onChange={handleCategorySelect}
-                                    style={{ borderColor: !categoryId ? '#fca5a5' : undefined }}
-                                >
-                                    <option value="">-- Choose Category --</option>
-                                    {categories.map(cat => (
-                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                    ))}
-                                </select>
-                                {!categoryId && <span style={{ fontSize: '0.875rem', color: '#ef4444' }}>Category is required</span>}
-                            </div>
-                        )}
-                        {!isNew && categoryId && (
-                            <div style={{ padding: '0.75rem', backgroundColor: '#f3f4f6', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}>
-                                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>Category ID</p>
-                                <p style={{ fontSize: '1rem', fontWeight: '600' }}>{categoryId}</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Product Name Field */}
+            <div className="card w-full" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                {isNew && (
                     <div className="form-group">
-                        <label className="form-label" style={{ fontWeight: '600' }}>Product Name *</label>
-                        <input
-                            type="text"
+                        <label className="form-label">Select Category</label>
+                        <select
                             className="form-input"
-                            placeholder="Enter product name"
-                            value={productName}
-                            onChange={(e) => setProductName(e.target.value)}
-                            style={{ borderColor: !productName.trim() && productName !== '' ? '#fca5a5' : undefined }}
-                        />
-                        {!productName.trim() && <span style={{ fontSize: '0.875rem', color: '#ef4444' }}>Product name is required</span>}
+                            value={categoryId}
+                            onChange={handleCategorySelect}
+                        >
+                            <option value="">-- Choose Category --</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
                     </div>
+                )}
+
+                {/* Product name field */}
+                <div className="form-group">
+                    <label className="form-label">Product Name</label>
+                    <input
+                        type="text"
+                        className="form-input"
+                        value={productName}
+                        onChange={(e) => setProductName(e.target.value)}
+                    />
                 </div>
 
-                {/* Attributes Section */}
-                {categoryId && (
-                    <div>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem' }}>Product Attributes</h2>
-                        {loading ? (
-                            <div className="flex items-center justify-center" style={{ padding: '3rem' }}>
-                                <Loader2 size={32} className="animate-spin text-primary" color="#6366f1" />
-                            </div>
-                        ) : productData.length === 0 ? (
-                            <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: '#f9fafb', borderRadius: '0.375rem', border: '1px dashed #d1d5db' }}>
-                                <p style={{ color: '#6b7280' }}>No attributes assigned to this category</p>
-                            </div>
+                {!isNew && categoryId && (
+                    <div className="form-group">
+                        <label className="form-label" style={{ color: '#888', fontSize: '0.9rem' }}>Category ID: {categoryId}</label>
+                    </div>
+                )}
+
+                {loading ? (
+                    <div className="flex items-center justify-center" style={{ padding: '3rem' }}>
+                        <Loader2 size={32} className="animate-spin text-primary" color="#6366f1" />
+                    </div>
+                ) : (
+                    <form>
+                        {productData.length === 0 && categoryId ? (
+                            <p className="badge badge-neutral mt-4">No attributes assigned to this category.</p>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
                                 {productData.map((field) => (
                                     <div key={field.attributeId} className="form-group" style={{ marginBottom: 0 }}>
-                                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600' }}>
+                                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             {field.attributeName}
-                                            <span className="badge badge-purple" style={{ fontSize: '0.65rem', padding: '0.25rem 0.5rem' }}>{field.dataType}</span>
+                                            <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>{field.dataType}</span>
                                         </label>
                                         {field.dataType === 'boolean' ? (
                                             <select
@@ -212,7 +200,7 @@ export default function ProductDetailsPage() {
                                                 value={field.value}
                                                 onChange={(e) => handleValueChange(field.attributeId, e.target.value)}
                                             >
-                                                <option value="">-- Select --</option>
+                                                <option value="">Select boolean</option>
                                                 <option value="true">True</option>
                                                 <option value="false">False</option>
                                             </select>
@@ -221,7 +209,6 @@ export default function ProductDetailsPage() {
                                                 type="number"
                                                 step={field.dataType === 'float' ? 'any' : '1'}
                                                 className="form-input"
-                                                placeholder={`Enter ${field.dataType}`}
                                                 value={field.value}
                                                 onChange={(e) => handleValueChange(field.attributeId, e.target.value)}
                                             />
@@ -229,7 +216,6 @@ export default function ProductDetailsPage() {
                                             <input
                                                 type="text"
                                                 className="form-input"
-                                                placeholder={`Enter ${field.dataType}`}
                                                 value={field.value}
                                                 onChange={(e) => handleValueChange(field.attributeId, e.target.value)}
                                             />
@@ -238,7 +224,7 @@ export default function ProductDetailsPage() {
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </form>
                 )}
             </div>
         </div>

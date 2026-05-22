@@ -316,10 +316,10 @@ func (s *Store) GetProductData(ctx context.Context, productIds []string) ([]mode
 func (s *Store) GetProductList(ctx context.Context) ([]models.ProductListResult, error) {
 	var productList []models.ProductListResult
 	err := s.DB.Raw(`
-		SELECT p.id, p.name as name, c.path as "categoryPath", c.id as "categoryId"
+		SELECT p.id, MAX(p.name) as name, c.path as "categoryPath", c.id as "categoryId"
 		FROM products p
 		JOIN categories c ON p.category_id = c.id
-		GROUP BY p.id, p.name, c.path, c.id
+		GROUP BY p.id, c.path, c.id
 	`).Scan(&productList).Error
 	if err != nil {
 		return []models.ProductListResult{}, err

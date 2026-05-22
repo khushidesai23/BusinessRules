@@ -46,80 +46,47 @@ export default function ProductPage() {
             )}
 
             <div className="card w-full">
+                <h3>Product List</h3>
                 {loading ? (
-                    <div className="flex items-center justify-center" style={{ padding: '3rem' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ marginBottom: '1rem' }}>Loading products...</div>
-                        </div>
-                    </div>
-                ) : products.length === 0 ? (
-                    <div style={{ padding: '3rem', textAlign: 'center', backgroundColor: '#f9fafb', borderRadius: '0.375rem' }}>
-                        <Box size={32} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
-                        <p style={{ color: '#6b7280', fontSize: '1rem', marginBottom: '1rem' }}>No products found</p>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => navigate('/product/new')}
-                        >
-                            <Plus size={16} />
-                            Create Your First Product
-                        </button>
-                    </div>
+                    <p className="badge badge-neutral">Loading products...</p>
                 ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
-                                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Product Name</th>
-                                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Category</th>
-                                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Product ID</th>
-                                    <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', color: '#374151' }}>Action</th>
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {products.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                                        No products found. Add a new one!
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {products.map((prod, index) => (
-                                    <tr 
-                                        key={prod.id} 
-                                        style={{ 
-                                            borderBottom: '1px solid #e5e7eb',
-                                            backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9fafb',
-                                            transition: 'background-color 0.2s',
-                                            cursor: 'pointer'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f9fafb'
-                                        }
-                                    >
-                                        <td style={{ padding: '1rem' }}>
+                            ) : (
+                                products.map(prod => (
+                                    <tr key={prod.id} className="cursor-pointer" onClick={() => navigate(`/product/${prod.id}`)}>
+                                        <td>{prod.id}</td>
+                                        <td>
                                             <div className="flex items-center gap-2">
-                                                <Box size={18} color="#6366f1" style={{ opacity: 0.7 }} />
-                                                <span style={{ fontWeight: '500', color: '#1f2937' }}>{prod.name || '(Unnamed)'}</span>
+                                                <Box size={16} color="#8b949e" />
+                                                {prod.name}
                                             </div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className="badge badge-purple" style={{ backgroundColor: '#eee5ff', color: '#7c3aed', padding: '0.375rem 0.75rem', borderRadius: '0.25rem', fontSize: '0.875rem' }}>
-                                                {prod.categoryPath || prod.category || 'N/A'}
-                                            </span>
+                                        <td>
+                                            <span className="badge badge-purple">{prod.categoryPath}</span>
                                         </td>
-                                        <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#6b7280', fontFamily: 'monospace' }}>
-                                            {prod.id.substring(0, 8)}...
-                                        </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                            <button 
-                                                className="btn btn-secondary" 
-                                                onClick={(e) => { 
-                                                    e.stopPropagation(); 
-                                                    navigate(`/product/${prod.id}`); 
-                                                }}
-                                                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-                                            >
-                                                Edit
-                                            </button>
+                                        <td>
+                                            <button className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); navigate(`/product/${prod.id}`); }}>Edit</button>
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 )}
             </div>
         </div>
