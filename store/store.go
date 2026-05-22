@@ -130,11 +130,28 @@ func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductP
 
 	// Upsert product names (id, category_id, name)
 	if len(nameValues) > 0 {
-		nameQuery := strings.Join(nameValues, ",")
+		// include attribute_id = 0 for name rows so they satisfy NOT NULL and primary key
+		// nameValues currently formatted as ('id', category_id, 'name') — rewrite with attribute_id = 0
+		var nameRows []string
+		for _, v := range nameValues {
+			// v is like ( 'id', 6, 'pen' ) -> insert attribute_id = 0 after category_id
+			// we'll transform by injecting , 0 after the second comma position
+			// simpler: rebuild from original data by splitting on comma
+			parts := strings.SplitN(v, ",", 3)
+			if len(parts) == 3 {
+				// parts[0]="('id'", parts[1]=" 6", parts[2]=" 'pen')"
+				newRow := fmt.Sprintf("%s,%s,0,%s", strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2]))
+				nameRows = append(nameRows, newRow)
+			} else {
+				// fallback: append with attribute_id 0 manually
+				nameRows = append(nameRows, strings.Replace(v, ")", ", 0)", 1))
+			}
+		}
+		nameQuery := strings.Join(nameRows, ",")
 		q := fmt.Sprintf(`
-			INSERT INTO products (id, category_id, name)
+			INSERT INTO products (id, category_id, attribute_id, name)
 			VALUES %s
-			ON CONFLICT (id, category_id)
+			ON CONFLICT ON CONSTRAINT products_pkey
 			DO UPDATE SET name = EXCLUDED.name
 		`, nameQuery)
 		if err := s.DB.Exec(q).Error; err != nil {
