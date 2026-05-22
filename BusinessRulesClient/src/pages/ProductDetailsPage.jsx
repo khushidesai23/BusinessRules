@@ -37,16 +37,18 @@ export default function ProductDetailsPage() {
         const res = await ProductAPI.getById(id);
         if (res.message === 'success' && res.data && res.data.length > 0) {
             setCategoryId(res.data[0].categoryId);
-            // Constructing form data state
-            const initialData = res.data.map(item => ({
-                attributeId: item.attributeId,
-                attributeName: item.attributeName,
-                dataType: item.dataType,
-                value: item.data !== undefined ? item.data : ''
-            }));
             // extract product name if attributeId == 0
             const nameField = res.data.find(d => d.attributeId === 0);
             if (nameField && nameField.data) setProductName(nameField.data);
+            // Constructing form data state (exclude attributeId = 0 and 'name' attribute to avoid duplication)
+            const initialData = res.data
+                .filter(item => item.attributeId !== 0 && item.attributeName.toLowerCase() !== 'name')
+                .map(item => ({
+                    attributeId: item.attributeId,
+                    attributeName: item.attributeName,
+                    dataType: item.dataType,
+                    value: item.data !== undefined ? item.data : ''
+                }));
             setProductData(initialData);
             setError('');
         } else {
@@ -67,7 +69,9 @@ export default function ProductDetailsPage() {
         const res = await AssignmentAPI.getCategoryWiseCommonAttributes([selectedCatId]);
         if (res.message === 'success') {
             const assignedAttrs = (res.data || []).filter(attr => attr.assigned);
-            setProductData(assignedAttrs.map(attr => ({
+            // Filter out 'name' attribute if present (handle via productName field)
+            const filteredAttrs = assignedAttrs.filter(attr => attr.name.toLowerCase() !== 'name');
+            setProductData(filteredAttrs.map(attr => ({
                 attributeId: attr.id,
                 attributeName: attr.name,
                 dataType: attr.dataType,
@@ -170,7 +174,7 @@ export default function ProductDetailsPage() {
 
                 {!isNew && categoryId && (
                     <div className="form-group">
-                        <label className="form-label">Category ID: {categoryId}</label>
+                        <label className="form-label" style={{ color: '#888', fontSize: '0.9rem' }}>Category ID: {categoryId}</label>
                     </div>
                 )}
 

@@ -77,7 +77,7 @@ export default function ProductPage() {
                                             </div>
                                         </td>
                                         <td>
-                                            <span className="badge badge-purple">{prod.category}</span>
+                                            <span className="badge badge-purple">{prod.categoryPath}</span>
                                         </td>
                                         <td>
                                             <button className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); navigate(`/product/${prod.id}`); }}>Edit</button>

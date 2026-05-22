@@ -61,7 +61,6 @@ type Product struct {
 	CategoryID  uint      `gorm:"primaryKey"`
 	Category    Category  `gorm:"foreignKey:CategoryID; references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	AttributeID uint      `gorm:"primaryKey"`
-	Attribute   Attribute `gorm:"foreignKey:AttributeID; references:ID; constraint:OnUpdate:CASCADE, OnDelete:CASCADE"`
 	Name        string    `gorm:"type:text" json:",omitempty"`
 	Data        string
 	CreatedAt   time.Time  `gorm:"autoCreateTime" json:",omitempty"`
