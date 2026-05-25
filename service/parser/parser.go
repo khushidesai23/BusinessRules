@@ -63,6 +63,7 @@ func NewParser(l *Lexer) *Parser {
 	p.registerPrefixFunction(IDENT, p.parseIdentifier)
 	p.registerPrefixFunction(INT, p.parseIntegerLiteral)
 	p.registerPrefixFunction(MINUS, p.parsePrefixExpression)
+	p.registerPrefixFunction(LPAREN, p.parseGroupedExpression)
 	p.registerPrefixFunction(IF, p.parseIfExpression)
 	p.registerPrefixFunction(BOOL, p.parseBoolean)
 	p.registerPrefixFunction(STRING, p.parseStringLiteral)
