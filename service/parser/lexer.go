@@ -54,6 +54,12 @@ func (l *Lexer) NextToken() Token {
 		switch l.ch {
 		case "IF":
 			tok = newToken(IF, l.ch)
+		case "MIN":
+			tok = newToken(MIN, l.ch)
+		case "MAX":
+			tok = newToken(MAX, l.ch)
+		case "ROUND":
+			tok = newToken(ROUND, l.ch)
 		case "TRUE":
 			tok = newToken(BOOL, l.ch)
 		case "FALSE":
@@ -69,6 +75,10 @@ func (l *Lexer) NextToken() Token {
 		tok = newToken(ASTERISK, l.ch)
 	case '/':
 		tok = newToken(SLASH, l.ch)
+	case '%':
+		tok = newToken(MODULO, l.ch)
+	case '^':
+		tok = newToken(POWER, l.ch)
 	case scanner.EOF:
 		tok = newToken(EOF, l.ch)
 	case scanner.Int:
