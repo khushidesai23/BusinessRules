@@ -273,6 +273,47 @@ func (p *Parser) parseIfExpression() Expression {
 
 }
 
+// parseFunctionCall parses function calls like MIN(a, b), MAX(x, y, z), ROUND(n, decimals)
+func (p *Parser) parseFunctionCall() Expression {
+	call := &CallExpression{
+		Token:    p.currentToken,
+		Function: &Identifier{Token: p.currentToken, Value: p.currentToken.TokenValue},
+	}
+
+	if !p.expectPeek(LPAREN) {
+		return nil
+	}
+
+	call.Arguments = p.parseCallArguments()
+
+	return call
+}
+
+// parseCallArguments parses comma-separated function arguments
+func (p *Parser) parseCallArguments() []Expression {
+	args := []Expression{}
+
+	if p.peekTokenIs(RPAREN) {
+		p.nextToken()
+		return args
+	}
+
+	p.nextToken()
+	args = append(args, p.parseExpression(LOWEST))
+
+	for p.peekTokenIs(COMMA) {
+		p.nextToken()
+		p.nextToken()
+		args = append(args, p.parseExpression(LOWEST))
+	}
+
+	if !p.expectPeek(RPAREN) {
+		return nil
+	}
+
+	return args
+}
+
 func (p *Parser) parseInfixExpression(left Expression) Expression {
 	expression := &InfixExpression{
 		Token:    p.currentToken,
