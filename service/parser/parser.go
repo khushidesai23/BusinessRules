@@ -15,7 +15,8 @@ const (
 	EQUAL
 	SUM
 	PRODUCT
-	DIVISION
+	MODULO_PREC
+	POWER_PREC
 	PREFIX
 	// PAREN
 )
@@ -28,7 +29,9 @@ var precedences = map[TokenType]int{
 	PLUS:     SUM,
 	MINUS:    SUM,
 	ASTERISK: PRODUCT,
-	SLASH:    DIVISION,
+	SLASH:    PRODUCT,
+	MODULO:   MODULO_PREC,
+	POWER:    POWER_PREC,
 	// LPAREN:PAREN,
 	// RPAREN:PAREN,
 }
@@ -64,6 +67,9 @@ func NewParser(l *Lexer) *Parser {
 	p.registerPrefixFunction(BOOL, p.parseBoolean)
 	p.registerPrefixFunction(STRING, p.parseStringLiteral)
 	p.registerPrefixFunction(FLOAT, p.parseFloatLiteral)
+	p.registerPrefixFunction(MIN, p.parseFunctionCall)
+	p.registerPrefixFunction(MAX, p.parseFunctionCall)
+	p.registerPrefixFunction(ROUND, p.parseFunctionCall)
 
 	p.registerInfixFunction(EQ, p.parseInfixExpression)
 	p.registerInfixFunction(NOT_EQ, p.parseInfixExpression)
@@ -73,6 +79,8 @@ func NewParser(l *Lexer) *Parser {
 	p.registerInfixFunction(MINUS, p.parseInfixExpression)
 	p.registerInfixFunction(ASTERISK, p.parseInfixExpression)
 	p.registerInfixFunction(SLASH, p.parseInfixExpression)
+	p.registerInfixFunction(MODULO, p.parseInfixExpression)
+	p.registerInfixFunction(POWER, p.parseInfixExpression)
 
 	p.nextToken()
 	p.nextToken()
