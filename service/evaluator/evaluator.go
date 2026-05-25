@@ -4,6 +4,7 @@ import (
 	"calculationengine/service/parser"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -181,6 +182,20 @@ func evalIntegerInfixExpression(operator string, left Object, right Object) Obje
 			return newError("Division by zero not allowed")
 		}
 		return &Integer{Value: (leftVal / rightVal)}
+	case "%":
+		if rightVal == 0 {
+			return newError("Modulo by zero not allowed")
+		}
+		return &Integer{Value: (leftVal % rightVal)}
+	case "^":
+		if rightVal < 0 {
+			return newError("Negative exponents not supported for integers")
+		}
+		result := int64(1)
+		for i := int64(0); i < rightVal; i++ {
+			result *= leftVal
+		}
+		return &Integer{Value: result}
 	case ">":
 		return NativeBoolToBooleanObject(leftVal > rightVal)
 	case "<":
@@ -209,6 +224,13 @@ func evalFloatInfixExpression(operator string, left Object, right Object) Object
 			return newError("Division by zero not allowed")
 		}
 		return &Float{Value: (leftVal / rightVal)}
+	case "%":
+		if rightVal == 0.0 {
+			return newError("Modulo by zero not allowed")
+		}
+		return &Float{Value: math.Mod(leftVal, rightVal)}
+	case "^":
+		return &Float{Value: math.Pow(leftVal, rightVal)}
 	case ">":
 		return NativeBoolToBooleanObject(leftVal > rightVal)
 	case "<":
