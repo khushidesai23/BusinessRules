@@ -29,6 +29,9 @@ func Eval(node parser.Node, env *Environment) Object {
 	case *parser.IntegerLiteral:
 		return &Integer{Value: int64(node.Value)}
 
+	case *parser.FloatLiteral:
+		return &Float{Value: node.Value}
+
 	case *parser.Identifier:
 		return evalIdentifier(node, env)
 
@@ -52,6 +55,9 @@ func Eval(node parser.Node, env *Environment) Object {
 
 	case *parser.IfExpression:
 		return evalIfExpression(node, env)
+
+	case *parser.CallExpression:
+		return evalCallExpression(node, env)
 	}
 	return newError("Unknown parse function")
 }
@@ -283,4 +289,158 @@ func evalMinusPrefixOperatorExpression(right Object) Object {
 
 func newError(format string, a ...interface{}) *Error {
 	return &Error{Message: fmt.Sprintf(format, a...)}
+}
+
+// evalCallExpression evaluates function calls like MIN, MAX, ROUND
+func evalCallExpression(call *parser.CallExpression, env *Environment) Object {
+	funcIdent, ok := call.Function.(*parser.Identifier)
+	if !ok {
+		return newError("Invalid function call")
+	}
+
+	args := evalExpressions(call.Arguments, env)
+	if len(args) == 1 && isError(args[0]) {
+		return args[0]
+	}
+
+	return applyFunction(funcIdent.Value, args)
+}
+
+// evalExpressions evaluates a slice of expressions
+func evalExpressions(exps []parser.Expression, env *Environment) []Object {
+	var result []Object
+	for _, e := range exps {
+		evaluated := Eval(e, env)
+		if isError(evaluated) {
+			return []Object{evaluated}
+		}
+		result = append(result, evaluated)
+	}
+	return result
+}
+
+// applyFunction applies built-in functions (MIN, MAX, ROUND)
+func applyFunction(name string, args []Object) Object {
+	switch name {
+	case "MIN":
+		return builtinMin(args)
+	case "MAX":
+		return builtinMax(args)
+	case "ROUND":
+		return builtinRound(args)
+	default:
+		return newError("Unknown function: %s", name)
+	}
+}
+
+// builtinMin returns the minimum value from arguments
+func builtinMin(args []Object) Object {
+	if len(args) == 0 {
+		return newError("MIN requires at least 1 argument")
+	}
+
+	var minVal float64
+	firstNum := true
+
+	for _, arg := range args {
+		var num float64
+		switch arg.Type() {
+		case INTEGER_OBJ:
+			num = float64(arg.(*Integer).Value)
+		case FLOAT_OBJ:
+			num = arg.(*Float).Value
+		default:
+			return newError("MIN arguments must be numeric")
+		}
+
+		if firstNum {
+			minVal = num
+			firstNum = false
+		} else if num < minVal {
+			minVal = num
+		}
+	}
+
+	if allIntegers(args) {
+		return &Integer{Value: int64(minVal)}
+	}
+	return &Float{Value: minVal}
+}
+
+// builtinMax returns the maximum value from arguments
+func builtinMax(args []Object) Object {
+	if len(args) == 0 {
+		return newError("MAX requires at least 1 argument")
+	}
+
+	var maxVal float64
+	firstNum := true
+
+	for _, arg := range args {
+		var num float64
+		switch arg.Type() {
+		case INTEGER_OBJ:
+			num = float64(arg.(*Integer).Value)
+		case FLOAT_OBJ:
+			num = arg.(*Float).Value
+		default:
+			return newError("MAX arguments must be numeric")
+		}
+
+		if firstNum {
+			maxVal = num
+			firstNum = false
+		} else if num > maxVal {
+			maxVal = num
+		}
+	}
+
+	if allIntegers(args) {
+		return &Integer{Value: int64(maxVal)}
+	}
+	return &Float{Value: maxVal}
+}
+
+// builtinRound rounds a number to specified decimal places
+// ROUND(number, decimals) - if decimals not provided, rounds to nearest integer
+func builtinRound(args []Object) Object {
+	if len(args) == 0 || len(args) > 2 {
+		return newError("ROUND requires 1 or 2 arguments")
+	}
+
+	var number float64
+	switch args[0].Type() {
+	case INTEGER_OBJ:
+		number = float64(args[0].(*Integer).Value)
+	case FLOAT_OBJ:
+		number = args[0].(*Float).Value
+	default:
+		return newError("ROUND first argument must be numeric")
+	}
+
+	decimals := int64(0)
+	if len(args) == 2 {
+		if args[1].Type() != INTEGER_OBJ {
+			return newError("ROUND second argument must be an integer")
+		}
+		decimals = args[1].(*Integer).Value
+	}
+
+	multiplier := math.Pow(10, float64(decimals))
+	rounded := math.Round(number*multiplier) / multiplier
+
+	if decimals == 0 && allIntegers([]Object{args[0]}) {
+		return &Integer{Value: int64(rounded)}
+	}
+	return &Float{Value: rounded}
+}
+
+// allIntegers checks if all arguments are integers
+func allIntegers(args []Object) bool {
+	for _, arg := range args {
+		if arg.Type() != INTEGER_OBJ {
+			return false
+		}
+	}
+	return true
 }
