@@ -200,3 +200,30 @@ func (ie *IfExpression) String() string {
 func (ie *IfExpression) TokenLiteral() string {
 	return ie.Token.TokenValue
 }
+
+// CallExpression represents a function call like MIN(a, b) or MAX(x, y, z)
+type CallExpression struct {
+	Token     Token
+	Function  Expression
+	Arguments []Expression
+}
+
+func (ce *CallExpression) expressionNode() {}
+
+func (ce *CallExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(ce.Function.String())
+	out.WriteString("(")
+	for i, arg := range ce.Arguments {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(arg.String())
+	}
+	out.WriteString(")")
+	return out.String()
+}
+
+func (ce *CallExpression) TokenLiteral() string {
+	return ce.Token.TokenValue
+}
