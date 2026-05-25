@@ -26,11 +26,18 @@ const (
 	MINUS    TokenType = "-"
 	ASTERISK TokenType = "*"
 	SLASH    TokenType = "/"
+	MODULO   TokenType = "%"
+	POWER    TokenType = "^"
 
 	IF TokenType = "IF"
 
 	EQ     TokenType = "="
 	NOT_EQ TokenType = "<>"
+
+	// Built-in Functions
+	MIN   TokenType = "MIN"
+	MAX   TokenType = "MAX"
+	ROUND TokenType = "ROUND"
 
 	// Delimiters
 	COMMA  TokenType = ","
