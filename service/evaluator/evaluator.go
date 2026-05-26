@@ -124,6 +124,9 @@ func evalInfixExpression(operator string, left Object, right Object) Object {
 		}
 	}
 	switch {
+	case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
+		return evalIntegerInfixExpression(operator, left, right)
+
 	case left.Type() == FLOAT_OBJ && right.Type() == FLOAT_OBJ:
 		return evalFloatInfixExpression(operator, left, right)
 
@@ -133,7 +136,7 @@ func evalInfixExpression(operator string, left Object, right Object) Object {
 
 	case left.Type() == INTEGER_OBJ && right.Type() == FLOAT_OBJ:
 		leftAsFloat := &Float{Value: float64(left.(*Integer).Value)}
-		return evalIntegerInfixExpression(operator, leftAsFloat, right)
+		return evalFloatInfixExpression(operator, leftAsFloat, right)
 
 	case left.Type() == STRING_OBJ && right.Type() == STRING_OBJ:
 		return evalStringInfixExpression(operator, left, right)
