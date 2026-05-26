@@ -284,3 +284,11 @@ formulaTokenLoop:
 func (formula *Formula) validateAttributes() {
 
 }
+
+func DeleteFormula(ctx context.Context, request models.DeleteFormulaRequest) (*storage.ApiResponse, error) {
+	s := storage.NewStore(storage.DB)
+	if err := s.DeleteFormula(ctx, request.CategoryID, request.TargetAttribute); err != nil {
+		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
+	}
+	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
+}

@@ -118,6 +118,16 @@ export default function ProductDetailsPage() {
         setSaving(false);
     };
 
+    const handleDelete = async () => {
+        if (isNew) return;
+        if (!window.confirm('Delete this product?')) return;
+        setLoading(true);
+        const res = await ProductAPI.delete(id);
+        if (res.message === 'success') navigate('/product');
+        else setError(res.message);
+        setLoading(false);
+    };
+
     return (
         <div className="page-container">
             <div className="flex justify-between items-center" style={{ marginBottom: '2rem' }}>
@@ -127,14 +137,21 @@ export default function ProductDetailsPage() {
                     </button>
                     <h1>{isNew ? 'Create Product' : 'Edit Product'}</h1>
                 </div>
-                <button
-                    className="btn btn-primary"
-                    onClick={handleSave}
-                    disabled={saving || loading || !categoryId}
-                >
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    {saving ? 'Saving...' : 'Save Product'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    {!isNew && (
+                        <button className="btn btn-error" onClick={handleDelete} disabled={loading}>
+                            Delete
+                        </button>
+                    )}
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleSave}
+                        disabled={saving || loading || !categoryId}
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        {saving ? 'Saving...' : 'Save Product'}
+                    </button>
+                </div>
             </div>
 
             {error && (

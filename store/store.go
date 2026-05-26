@@ -347,3 +347,58 @@ func (s *Store) GetFormulasList(ctx context.Context) ([]models.FormulasListResul
 	}
 	return formulaList, nil
 }
+
+// DeleteCategory deletes a category by id (cascades to related records)
+func (s *Store) DeleteCategory(ctx context.Context, categoryId int) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", categoryId).Delete(&Category{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// DeleteAttribute removes an attribute and related assignments/formulas
+func (s *Store) DeleteAttribute(ctx context.Context, attributeId int) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", attributeId).Delete(&Attribute{}).Error; err != nil {
+			return err
+		}
+		// Remove category assignments referencing this attribute
+		if err := tx.Where("attribute_id = ?", attributeId).Delete(&CategoryAttributeAssignment{}).Error; err != nil {
+			return err
+		}
+		// Remove formulas that target this attribute
+		if err := tx.Where("target_attribute_id = ?", attributeId).Delete(&Formulas{}).Error; err != nil {
+			return err
+		}
+		// Remove formula dependency entries where attribute is dependent
+		if err := tx.Where("dependent_attribute_id = ? OR target_attribute_id = ?", attributeId, attributeId).Delete(&FormulaDependencies{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// DeleteProduct deletes a product and its attribute rows
+func (s *Store) DeleteProduct(ctx context.Context, productId string) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", productId).Delete(&Product{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// DeleteFormula deletes a saved formula and its dependencies
+func (s *Store) DeleteFormula(ctx context.Context, categoryId int, targetAttributeId int) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("category_id = ? AND target_attribute_id = ?", categoryId, targetAttributeId).Delete(&Formulas{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("category_id = ? AND target_attribute_id = ?", categoryId, targetAttributeId).Delete(&FormulaDependencies{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}

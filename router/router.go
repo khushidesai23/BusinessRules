@@ -12,7 +12,6 @@ import (
 
 	// storage "calculationengine/store"
 	// "fmt"
-	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -23,8 +22,10 @@ var Router *gin.Engine
 func parseRequest[T any](c *gin.Context) T {
 	var request T
 	if err := c.BindJSON(&request); err != nil {
-		fmt.Println(err)
-		log.Fatalln("Failed to Parse Request")
+		// Don't crash the server on a bad/malformed request body.
+		// Log the error and return the zero value; handlers will validate and respond.
+		fmt.Println("parseRequest BindJSON error:", err)
+		return request
 	}
 	return request
 }
@@ -77,6 +78,23 @@ func Api() {
 		c.JSON(201, result)
 	})
 
+	Router.POST("/v1/formula/delete", func(c *gin.Context) {
+		request := parseRequest[models.DeleteFormulaRequest](c)
+		validate := validator.New()
+		validationErr := validate.Struct(request)
+		if validationErr != nil {
+			c.JSON(400, gin.H{"error": validationErr.Error()})
+			return
+		}
+		ctx := c.Request.Context()
+		result, err := formulas.DeleteFormula(ctx, request)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, result)
+	})
+
 	Router.POST("/v1/category/get-all", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		result, err := category.GetAllCategories(ctx)
@@ -104,6 +122,23 @@ func Api() {
 		c.JSON(201, result)
 	})
 
+	Router.POST("/v1/category/delete", func(c *gin.Context) {
+		request := parseRequest[models.DeleteCategoryRequest](c)
+		validate := validator.New()
+		validationErr := validate.Struct(request)
+		if validationErr != nil {
+			c.JSON(400, gin.H{"error": validationErr.Error()})
+			return
+		}
+		ctx := c.Request.Context()
+		result, err := category.DeleteCategory(ctx, request)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, result)
+	})
+
 	Router.POST("/v1/attributes/get-all", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		result, err := attribute.GetAllAttributes(ctx)
@@ -112,6 +147,23 @@ func Api() {
 			return
 		}
 		c.JSON(201, result)
+	})
+
+	Router.POST("/v1/attribute/delete", func(c *gin.Context) {
+		request := parseRequest[models.DeleteAttributeRequest](c)
+		validate := validator.New()
+		validationErr := validate.Struct(request)
+		if validationErr != nil {
+			c.JSON(400, gin.H{"error": validationErr.Error()})
+			return
+		}
+		ctx := c.Request.Context()
+		result, err := attribute.DeleteAttribute(ctx, request)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, result)
 	})
 
 	Router.POST("/v1/assignment/get-category-wise-common-attributes", func(c *gin.Context) {
@@ -163,6 +215,23 @@ func Api() {
 			return
 		}
 		c.JSON(201, result)
+	})
+
+	Router.POST("/v1/product/delete", func(c *gin.Context) {
+		request := parseRequest[models.DeleteProductRequest](c)
+		validate := validator.New()
+		validationErr := validate.Struct(request)
+		if validationErr != nil {
+			c.JSON(400, gin.H{"error": validationErr.Error()})
+			return
+		}
+		ctx := c.Request.Context()
+		result, err := product.DeleteProduct(ctx, request)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, result)
 	})
 
 	Router.POST("/v1/product/get-all", func(c *gin.Context) {

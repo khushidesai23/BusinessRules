@@ -76,3 +76,20 @@ type CreateProductRequest struct {
 		Value       string `json:"value" validate:"required"`
 	} `json:"data"`
 }
+
+type DeleteCategoryRequest struct {
+	CategoryID int `json:"categoryId" validate:"required"`
+}
+
+type DeleteAttributeRequest struct {
+	AttributeID int `json:"attributeId" validate:"required"`
+}
+
+type DeleteProductRequest struct {
+	ProductID string `json:"productId" validate:"required"`
+}
+
+type DeleteFormulaRequest struct {
+	CategoryID      int `json:"categoryId" validate:"required"`
+	TargetAttribute int `json:"targetAttribute" validate:"required"`
+}

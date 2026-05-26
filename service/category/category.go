@@ -29,3 +29,11 @@ func GetAllCategories(ctx context.Context) (*models.GetCategoriesResponse, error
 	response.Data = data
 	return &response, nil
 }
+
+func DeleteCategory(ctx context.Context, request models.DeleteCategoryRequest) (*storage.ApiResponse, error) {
+	s := storage.NewStore(storage.DB)
+	if err := s.DeleteCategory(ctx, request.CategoryID); err != nil {
+		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
+	}
+	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
+}

@@ -119,3 +119,11 @@ func validateData(value string, attribute storage.Attribute) error {
 	}
 	return nil
 }
+
+func DeleteProduct(ctx context.Context, request models.DeleteProductRequest) (*storage.ApiResponse, error) {
+	s := storage.NewStore(storage.DB)
+	if err := s.DeleteProduct(ctx, request.ProductID); err != nil {
+		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
+	}
+	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
+}

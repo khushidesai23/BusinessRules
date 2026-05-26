@@ -9,9 +9,15 @@ export const apiCall = async (endpoint, payload = {}) => {
             },
             body: JSON.stringify(payload)
         });
-
-        const data = await response.json();
-        return data;
+        const text = await response.text();
+        try {
+            const data = JSON.parse(text || '{}');
+            if (!response.ok) return { message: data.error || data.message || text, error: true, status: response.status };
+            return data;
+        } catch (e) {
+            // Non-JSON response (HTML or plain text)
+            return { message: text || 'Unexpected response', error: true, status: response.status };
+        }
     } catch (error) {
         return { message: error.message || "Network error. Please try again later.", error: true };
     }
@@ -22,10 +28,14 @@ export const CategoryAPI = {
     create: (name) => apiCall('/v1/category/create', { name })
 };
 
+CategoryAPI.delete = (categoryId) => apiCall('/v1/category/delete', { categoryId });
+
 export const AttributeAPI = {
     getAll: () => apiCall('/v1/attributes/get-all', {}),
     create: (name, dataType) => apiCall('/v1/attribute/create', { name, dataType })
 };
+
+AttributeAPI.delete = (attributeId) => apiCall('/v1/attribute/delete', { attributeId });
 
 export const AssignmentAPI = {
     getCategoryWiseCommonAttributes: (categoryIds) => apiCall('/v1/assignment/get-category-wise-common-attributes', { categoryIds }),
@@ -42,7 +52,11 @@ export const ProductAPI = {
     upsert: (categoryId, productId, data) => apiCall('/v1/product/upsert', { categoryId, productId, data })
 };
 
+ProductAPI.delete = (productId) => apiCall('/v1/product/delete', { productId });
+
 export const FormulaAPI = {
     getAll: () => apiCall('/v1/formula/get-all', {}),
     create: (categoryId, targetAttribute, formula) => apiCall('/v1/formula/create', { categoryId, targetAttribute, formula })
 };
+
+FormulaAPI.delete = (categoryId, targetAttribute) => apiCall('/v1/formula/delete', { categoryId, targetAttribute });

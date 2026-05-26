@@ -57,3 +57,11 @@ func ChangeCategoryAttributeAssignment(ctx context.Context, request models.Chang
 	}
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
+
+func DeleteAttribute(ctx context.Context, request models.DeleteAttributeRequest) (*storage.ApiResponse, error) {
+	s := storage.NewStore(storage.DB)
+	if err := s.DeleteAttribute(ctx, request.AttributeID); err != nil {
+		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
+	}
+	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
+}

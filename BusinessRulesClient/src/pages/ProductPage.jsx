@@ -25,6 +25,15 @@ export default function ProductPage() {
         setLoading(false);
     };
 
+    const handleDeleteProduct = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this product?')) return;
+        setLoading(true);
+        const res = await ProductAPI.delete(id);
+        if (res.message === 'success') fetchProducts();
+        else setError(res.message);
+        setLoading(false);
+    };
+
     return (
         <div className="page-container">
             <div className="flex justify-between items-center" style={{ marginBottom: '2rem' }}>
@@ -81,6 +90,7 @@ export default function ProductPage() {
                                         </td>
                                         <td>
                                             <button className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); navigate(`/product/${prod.id}`); }}>Edit</button>
+                                            <button className="btn btn-error ml-2" onClick={(e) => { e.stopPropagation(); handleDeleteProduct(prod.id); }}>Delete</button>
                                         </td>
                                     </tr>
                                 ))
