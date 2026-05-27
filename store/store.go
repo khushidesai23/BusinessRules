@@ -258,9 +258,11 @@ func (s *Store) SaveFormula(ctx context.Context, params models.SaveFormulaParams
 			TargetAttributeID: uint(params.TargetAttributeID),
 		}).Delete(&FormulaDependencies{})
 
-		result := tx.Create(&formulaDependencies)
-		if result.Error != nil {
-			return result.Error
+		if len(formulaDependencies) > 0 {
+			result := tx.Create(&formulaDependencies)
+			if result.Error != nil {
+				return result.Error
+			}
 		}
 		return nil
 	})

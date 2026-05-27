@@ -96,15 +96,20 @@ func evalIfExpression(ie *parser.IfExpression, env *Environment) Object {
 }
 
 func isTruthy(object Object) (bool, error) {
-	switch {
-	case object == TRUE:
-		return true, nil
-	case object == FALSE:
+	switch object.Type() {
+	case BOOLEAN_OBJ:
+		if object == TRUE {
+			return true, nil
+		}
 		return false, nil
-	case object.Type() == INTEGER_OBJ && object.(*Integer).Value == 0:
+	case INTEGER_OBJ:
+		return object.(*Integer).Value != 0, nil
+	case FLOAT_OBJ:
+		return object.(*Float).Value != 0.0, nil
+	case STRING_OBJ:
+		return object.(*String).Value != "", nil
+	case NULL_OBJ:
 		return false, nil
-	case object.Type() == INTEGER_OBJ && object.(*Integer).Value > 0:
-		return true, nil
 	default:
 		return false, errors.New("Invalid Condition")
 	}
@@ -133,7 +138,12 @@ func evalInfixExpression(operator string, left Object, right Object) Object {
 
 	case left.Type() == INTEGER_OBJ && right.Type() == FLOAT_OBJ:
 		leftAsFloat := &Float{Value: float64(left.(*Integer).Value)}
-		return evalIntegerInfixExpression(operator, leftAsFloat, right)
+		return evalFloatInfixExpression(operator, leftAsFloat, right)
+
+		case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
+			lf := &Float{Value: float64(left.(*Integer).Value)}
+			rf := &Float{Value: float64(right.(*Integer).Value)}
+			return evalFloatInfixExpression(operator, lf, rf)
 
 	case left.Type() == STRING_OBJ && right.Type() == STRING_OBJ:
 		return evalStringInfixExpression(operator, left, right)
@@ -174,6 +184,26 @@ func evalStringAsNummber(s string) Object {
 }
 
 func evalIntegerInfixExpression(operator string, left Object, right Object) Object {
+	// Defensive: if either side is a float, convert both to float and delegate
+	if left.Type() == FLOAT_OBJ || right.Type() == FLOAT_OBJ {
+		var lval float64
+		var rval float64
+		if left.Type() == FLOAT_OBJ {
+			lval = left.(*Float).Value
+		} else if left.Type() == INTEGER_OBJ {
+			lval = float64(left.(*Integer).Value)
+		} else {
+			return newError("Type mismatch: %s %s %s", left.Type(), operator, right.Type())
+		}
+		if right.Type() == FLOAT_OBJ {
+			rval = right.(*Float).Value
+		} else if right.Type() == INTEGER_OBJ {
+			rval = float64(right.(*Integer).Value)
+		} else {
+			return newError("Type mismatch: %s %s %s", left.Type(), operator, right.Type())
+		}
+		return evalFloatInfixExpression(operator, &Float{Value: lval}, &Float{Value: rval})
+	}
 	leftVal := left.(*Integer).Value
 	rightVal := right.(*Integer).Value
 	switch operator {
@@ -280,11 +310,16 @@ func evalPrefixExpression(operator string, right Object) Object {
 }
 
 func evalMinusPrefixOperatorExpression(right Object) Object {
-	if right.Type() != INTEGER_OBJ {
+	switch right.Type() {
+	case INTEGER_OBJ:
+		value := right.(*Integer).Value
+		return &Integer{Value: -value}
+	case FLOAT_OBJ:
+		value := right.(*Float).Value
+		return &Float{Value: -value}
+	default:
 		return newError("Unknown operator: -%s", right.Type())
 	}
-	value := right.(*Integer).Value
-	return &Integer{Value: -value}
 }
 
 func newError(format string, a ...interface{}) *Error {

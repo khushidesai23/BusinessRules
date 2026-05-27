@@ -9,6 +9,7 @@ import (
 	storage "calculationengine/store"
 	"context"
 	"errors"
+	"strings"
 	"strconv"
 
 	// "errors"
@@ -208,6 +209,12 @@ func parseAndEvaluateFormula(formula string, env *evaluator.Environment) evaluat
 	lexer := parser.NewLexer(formula)
 	nparser := parser.NewParser(lexer)
 	program := nparser.ParseProgram()
+	if len(nparser.Errors()) > 0 {
+		return &evaluator.Error{Message: strings.Join(nparser.Errors(), ", ")}
+	}
+	if len(program.Statements) == 0 {
+		return &evaluator.Error{Message: "Empty program"}
+	}
 	eval := evaluator.Eval(program.Statements[0], env)
 	return eval
 }
