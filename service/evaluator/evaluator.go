@@ -140,10 +140,10 @@ func evalInfixExpression(operator string, left Object, right Object) Object {
 		leftAsFloat := &Float{Value: float64(left.(*Integer).Value)}
 		return evalFloatInfixExpression(operator, leftAsFloat, right)
 
-		case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
-			lf := &Float{Value: float64(left.(*Integer).Value)}
-			rf := &Float{Value: float64(right.(*Integer).Value)}
-			return evalFloatInfixExpression(operator, lf, rf)
+	case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
+		lf := &Float{Value: float64(left.(*Integer).Value)}
+		rf := &Float{Value: float64(right.(*Integer).Value)}
+		return evalFloatInfixExpression(operator, lf, rf)
 
 	case left.Type() == STRING_OBJ && right.Type() == STRING_OBJ:
 		return evalStringInfixExpression(operator, left, right)

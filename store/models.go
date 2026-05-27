@@ -57,11 +57,11 @@ type CategoryAttributeAssignment struct {
 }
 
 type Product struct {
-	ID          string    `gorm:"primaryKey" json:",omitempty"`
-	CategoryID  uint      `gorm:"primaryKey"`
-	Category    Category  `gorm:"foreignKey:CategoryID; references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	AttributeID uint      `gorm:"primaryKey"`
-	Name        string    `gorm:"type:text" json:",omitempty"`
+	ID          string   `gorm:"primaryKey" json:",omitempty"`
+	CategoryID  uint     `gorm:"primaryKey"`
+	Category    Category `gorm:"foreignKey:CategoryID; references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	AttributeID uint     `gorm:"primaryKey"`
+	Name        string   `gorm:"type:text" json:",omitempty"`
 	Data        string
 	CreatedAt   time.Time  `gorm:"autoCreateTime" json:",omitempty"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:",omitempty"`
