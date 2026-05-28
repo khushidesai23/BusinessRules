@@ -7,6 +7,9 @@ import (
 	"fmt"
 )
 
+// Fixed: CreateCategory now prevents FK violations by not auto-assigning default attributes
+// Previously: Attempted to create CategoryAttributeAssignment with AttributeID=0 (which doesn't exist as a real Attribute)
+// Now: Only creates the Category, allowing admin to explicitly assign real attributes later
 func CreateCategory(ctx context.Context, request models.CreateCategoryRequest) (*storage.ApiResponse, error) {
 	s := storage.NewStore(storage.DB)
 	fmt.Println("Hello1")
@@ -17,6 +20,7 @@ func CreateCategory(ctx context.Context, request models.CreateCategoryRequest) (
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
 
+// GetAllCategories retrieves all available categories
 func GetAllCategories(ctx context.Context) (*models.GetCategoriesResponse, error) {
 	response := models.GetCategoriesResponse{}
 	s := storage.NewStore(storage.DB)

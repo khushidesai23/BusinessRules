@@ -120,10 +120,18 @@ func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductP
 	}
 	var nameValues []string
 	var attrValues []string
+	
+	// Separate product names (attributeId=0) from attribute values (attributeId>0)
+	// This distinction is critical because:
+	// - Product names (attributeId=0) are stored in the Name column
+	// - Regular attributes are stored in the Data column
+	// - Product names don't have corresponding Attribute records (avoiding FK violations)
 	for _, data := range datas {
 		if data.AttributeID == 0 {
+			// Product name entry - will include attributeId=0
 			nameValues = append(nameValues, fmt.Sprintf("('%s', %d, '%s')", data.ID, data.CategoryID, data.Data))
 		} else {
+			// Attribute value entry - includes attributeId
 			attrValues = append(attrValues, fmt.Sprintf("('%s', %d, %d, '%s')", data.ID, data.CategoryID, data.AttributeID, data.Data))
 		}
 	}
@@ -160,6 +168,7 @@ func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductP
 	}
 
 	// Upsert attribute values (id, category_id, attribute_id, data)
+	// These rows have attributeId > 0 and store actual attribute values in the Data column
 	if len(attrValues) > 0 {
 		queryStr := strings.Join(attrValues, ",")
 		query := fmt.Sprintf(`
@@ -295,7 +304,11 @@ func (s *Store) GetTopologicalSorting(ctx context.Context, categoryIds []int) ([
 func (s *Store) GetProductData(ctx context.Context, productIds []string) ([]models.ProductDatasResult, error) {
 	var productDatas []models.ProductDatasResult
 
-	// Return product name as attributeId 0, and other attributes joined to attributes table
+	// Enhanced: Query now returns product name as attributeId 0, and other attributes joined to attributes table
+	// The query has two parts joined with UNION ALL:
+	// 1. Get product names from products.name column (attributeId=0)
+	// 2. Get attribute values by joining with attributes table (attributeId>0)
+	// This provides a unified interface where product names appear as a special "attribute" with ID 0
 	err := s.DB.Raw(`
 		SELECT p.id, p.name as data, 0 as "attributeId", 'name' as "attributeName", 'string' as "dataType", p.category_id as "categoryId"
 		FROM products p
@@ -315,6 +328,12 @@ func (s *Store) GetProductData(ctx context.Context, productIds []string) ([]mode
 
 func (s *Store) GetProductList(ctx context.Context) ([]models.ProductListResult, error) {
 	var productList []models.ProductListResult
+	
+	// Fixed: Use MAX(p.name) to handle the fact that a product has multiple rows in the products table
+	// (one for each attribute: name + all attribute values). We want to get the product name once.
+	// GROUP BY is required when selecting MAX() to aggregate correctly by product (id, category)
+	// Note: Each product ID appears once per attribute + once for the name row,
+	// so we need to group and aggregate to get a unique product record with its name
 	err := s.DB.Raw(`
 		SELECT p.id, MAX(p.name) as name, c.path as "categoryPath", c.id as "categoryId"
 		FROM products p
