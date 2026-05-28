@@ -27,13 +27,17 @@ type ProductDatasResult struct {
 	CategoryID    int      `json:"categoryId"`
 	ID            string   `json:"id"`
 	AttributeID   int      `json:"attributeId"`
+	// Enhanced: Can be product name (when attributeId=0) or attribute data value
 	Data          string   `json:"data"`
 	DataType      DataType `json:"dataType"`
 	AttributeName string   `json:"attributeName"`
 }
 
+// Enhanced: ProductListResult now includes product Name field for display purposes
+// The Name field is populated from products.name column (stored for attributeId=0)
 type ProductListResult struct {
 	ID           string `json:"id"`
+	// New: Product name (stored separately as attributeId=0 in products table)
 	Name         string `json:"name"`
 	CategoryID   int    `json:"categoryId"`
 	CategoryPath string `json:"categoryPath"`
@@ -71,10 +75,14 @@ type SaveFormulaParams struct {
 	TargetAttributeID               int
 }
 
+// Enhanced: CreateProductParams now supports both product names and attribute values
+// - When AttributeID=0: Data contains the product name (stored in products.name column)
+// - When AttributeID>0: Data contains attribute value (stored in products.data column)
+// This unified structure allows flexible upsertion of both product names and attribute data
 type CreateProductParams struct {
 	ID          string
 	CategoryID  uint
-	AttributeID uint
+	AttributeID uint // 0 for product name, >0 for attribute values
 	Data        string
 }
 

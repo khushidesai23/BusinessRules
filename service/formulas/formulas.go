@@ -131,6 +131,11 @@ func checkFormulaSyntaxErrors(formula string, attributes []storage.Attribute) (b
 	return true, nil
 }
 
+// EvaluateFormula processes products through all defined formulas and returns computed attribute values
+// Enhanced: Now handles product data which includes product names (attributeId=0)
+// - Product names are fetched as part of GetProductData but excluded from formula processing
+// - Only attributes with ID > 0 are eligible for formula evaluation
+// - Topological sorting ensures dependencies are evaluated in the correct order
 func EvaluateFormula(ctx context.Context, request models.EvaluateFormulaRequest) ([]models.CreateProductParams, error) {
 	response := []models.CreateProductParams{}
 	var store = storage.NewStore(storage.DB)

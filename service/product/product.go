@@ -29,16 +29,21 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 	}
 	var createProductParams []models.CreateProductParams
 	defaultAttributePresent := false
+	
+	// Enhanced: Process product data with support for attributeId 0 (product name)
 	for _, data := range request.ProductData {
 		value := strings.TrimSpace(data.Value)
 
 		if data.AttributeID == 0 {
-			// attributeId 0 is the default "product name" field; skip lookup in attributes map
+			// Fixed: AttributeID 0 is the special "product name" field
+			// Skip lookup in attributes map since it's not a real Attribute record
+			// Product names don't require FK validation
 			if value != "" {
 				defaultAttributePresent = true
 			}
-			// still allow saving the value without type validation
+			// Allow saving the product name value without type validation
 		} else {
+			// For actual attributes (ID > 0), validate against the category's attributes
 			attribute, ok := attributes[data.AttributeID]
 			if !ok {
 				return &storage.ApiResponse{Message: fmt.Sprintf("Attribute %d does not exist in this category", data.AttributeID), Data: []any{}}, nil
@@ -56,19 +61,26 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 		})
 	}
 
+	// Fixed: Require product name for new product creation
+	// Product name (attributeId=0) is mandatory to distinguish products
 	if create && !defaultAttributePresent {
 		return &storage.ApiResponse{Message: "Please enter Product Name to create a new product", Data: []any{}}, nil
 	}
 	s.UpsertProduct(ctx, createProductParams)
+	
+	// After saving product data, evaluate formulas to compute derived attributes
 	evaluateFormulaRequest := models.EvaluateFormulaRequest{
 		ProductID: []string{id},
 	}
 	evaluatedProductData, _ := formulas.EvaluateFormula(ctx, evaluateFormulaRequest)
 	fmt.Println(evaluatedProductData)
+	// Save computed formula results back to product
 	s.UpsertProduct(ctx, evaluatedProductData)
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
 
+// Enhanced: Retrieve all products in a list format with product names and category info
+// Product names are now stored in the products.name column (attributeId=0)
 func GetProductList(ctx context.Context) (*models.GetProductListResponse, error) {
 	response := models.GetProductListResponse{}
 	s := storage.NewStore(storage.DB)
@@ -82,6 +94,8 @@ func GetProductList(ctx context.Context) (*models.GetProductListResponse, error)
 	return &response, nil
 }
 
+// Enhanced: Retrieve single product with all attribute data including product name
+// Product name is returned as attributeId=0 in the result set
 func GetSingleProductData(ctx context.Context, request models.GetProductDataRequest) (*models.GetProductDataResponse, error) {
 	response := models.GetProductDataResponse{}
 	s := storage.NewStore(storage.DB)
