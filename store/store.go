@@ -120,7 +120,7 @@ func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductP
 	}
 	var nameValues []string
 	var attrValues []string
-	
+
 	// Separate product names (attributeId=0) from attribute values (attributeId>0)
 	// This distinction is critical because:
 	// - Product names (attributeId=0) are stored in the Name column
@@ -330,7 +330,7 @@ func (s *Store) GetProductData(ctx context.Context, productIds []string) ([]mode
 
 func (s *Store) GetProductList(ctx context.Context) ([]models.ProductListResult, error) {
 	var productList []models.ProductListResult
-	
+
 	// Fixed: Use MAX(p.name) to handle the fact that a product has multiple rows in the products table
 	// (one for each attribute: name + all attribute values). We want to get the product name once.
 	// GROUP BY is required when selecting MAX() to aggregate correctly by product (id, category)

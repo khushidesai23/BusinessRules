@@ -95,7 +95,7 @@ func AutoMigrate() error {
 	if err := DB.AutoMigrate(&Category{}); err != nil {
 		return err
 	}
-	
+
 	// CategoryAttributeAssignment is a manual join table - must be created explicitly
 	if !DB.Migrator().HasTable(&CategoryAttributeAssignment{}) {
 		if err := DB.Migrator().CreateTable(&CategoryAttributeAssignment{}); err != nil {
@@ -103,7 +103,7 @@ func AutoMigrate() error {
 			return err
 		}
 	}
-	
+
 	// Ensure columns exist on join table (added after initial schema)
 	// TopologicalSortOrder was added later, so check and add if missing
 	if DB.Migrator().HasTable(&CategoryAttributeAssignment{}) {
@@ -127,7 +127,7 @@ func AutoMigrate() error {
 			return err
 		}
 	}
-	
+
 	// Migrate formula-related tables
 	if err := DB.AutoMigrate(&Formulas{}); err != nil {
 		return err

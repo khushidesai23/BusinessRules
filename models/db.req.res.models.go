@@ -24,9 +24,9 @@ type FormulasListResult struct {
 }
 
 type ProductDatasResult struct {
-	CategoryID    int      `json:"categoryId"`
-	ID            string   `json:"id"`
-	AttributeID   int      `json:"attributeId"`
+	CategoryID  int    `json:"categoryId"`
+	ID          string `json:"id"`
+	AttributeID int    `json:"attributeId"`
 	// Enhanced: Can be product name (when attributeId=0) or attribute data value
 	Data          string   `json:"data"`
 	DataType      DataType `json:"dataType"`
@@ -36,7 +36,7 @@ type ProductDatasResult struct {
 // Enhanced: ProductListResult now includes product Name field for display purposes
 // The Name field is populated from products.name column (stored for attributeId=0)
 type ProductListResult struct {
-	ID           string `json:"id"`
+	ID string `json:"id"`
 	// New: Product name (stored separately as attributeId=0 in products table)
 	Name         string `json:"name"`
 	CategoryID   int    `json:"categoryId"`

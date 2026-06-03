@@ -29,7 +29,7 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 	}
 	var createProductParams []models.CreateProductParams
 	defaultAttributePresent := false
-	
+
 	// Enhanced: Process product data with support for attributeId 0 (product name)
 	for _, data := range request.ProductData {
 		value := strings.TrimSpace(data.Value)
@@ -67,7 +67,7 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 		return &storage.ApiResponse{Message: "Please enter Product Name to create a new product", Data: []any{}}, nil
 	}
 	s.UpsertProduct(ctx, createProductParams)
-	
+
 	// After saving product data, evaluate formulas to compute derived attributes
 	evaluateFormulaRequest := models.EvaluateFormulaRequest{
 		ProductID: []string{id},
