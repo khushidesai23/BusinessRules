@@ -68,7 +68,7 @@ func TestCreateProduct(t *testing.T) {
 				AttributeID int    `json:"attributeId" validate:"required"`
 				Value       string `json:"value" validate:"required"`
 			}{
-				{AttributeID: 0, Value: "Awesome Phone"}, // Product name
+				{AttributeID: 0, Value: "Awesome Phone"},    // Product name
 				{AttributeID: int(attr.ID), Value: "Black"}, // Attribute value
 			},
 		}
@@ -199,7 +199,7 @@ func TestGetProductList(t *testing.T) {
 		}
 
 		var response struct {
-			Message string                       `json:"message"`
+			Message string                     `json:"message"`
 			Data    []models.ProductListResult `json:"data"`
 		}
 		json.Unmarshal(w.Body.Bytes(), &response)

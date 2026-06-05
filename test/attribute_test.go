@@ -129,7 +129,7 @@ func TestGetAllAttributes(t *testing.T) {
 	}
 
 	var response struct {
-		Message string                      `json:"message"`
+		Message string                       `json:"message"`
 		Data    []models.GetAttributesResult `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &response)
