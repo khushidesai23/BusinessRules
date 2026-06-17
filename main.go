@@ -2,8 +2,8 @@ package main
 
 import (
 	"calculationengine/constants"
+	"calculationengine/logging"
 	"calculationengine/router"
-	"log"
 	// "calculationengine/service/evaluator"
 	// "calculationengine/service/parser"
 	"calculationengine/store"
@@ -16,11 +16,18 @@ import (
 )
 
 func main() {
+	logger := logging.Init()
 	constants.Load()
+	logger.Info("application configuration loaded")
+
 	storage.Connect()
+	logger.Info("database connection established")
+
 	if err := storage.AutoMigrate(); err != nil {
-		log.Fatalln("AutoMigrate failed:", err)
+		logger.Error("database automigrate failed", "error", err)
+		panic(err)
 	}
+	logger.Info("database migrations completed")
 
 	//^Manual Test golang scanner only
 	// var s scanner.Scanner
@@ -41,6 +48,7 @@ func main() {
 	//^ Manula Test Parser
 
 	router.Api()
+	logger.Info("http router initialized", "address", "0.0.0.0:3000")
 	router.Router.Run("0.0.0.0:3000")
 
 }
