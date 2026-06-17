@@ -1,13 +1,13 @@
 package router
 
 import (
+	"calculationengine/logging"
 	// "calculationengine/service"
 	"calculationengine/models"
 	"calculationengine/service/attribute"
 	"calculationengine/service/category"
 	"calculationengine/service/formulas"
 	"calculationengine/service/product"
-	"fmt"
 	"github.com/gin-contrib/cors"
 
 	// storage "calculationengine/store"
@@ -22,9 +22,7 @@ var Router *gin.Engine
 func parseRequest[T any](c *gin.Context) T {
 	var request T
 	if err := c.BindJSON(&request); err != nil {
-		// Don't crash the server on a bad/malformed request body.
-		// Log the error and return the zero value; handlers will validate and respond.
-		fmt.Println("parseRequest BindJSON error:", err)
+		logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request body parsing failed", "error", err)
 		return request
 	}
 	return request
@@ -33,12 +31,14 @@ func parseRequest[T any](c *gin.Context) T {
 func Api() {
 	Router = gin.Default()
 	Router.Use(cors.Default())
+	Router.Use(logging.RequestLogger())
 
 	Router.POST("/v1/attribute/create", func(c *gin.Context) {
 		request := parseRequest[models.CreateAttributeRequest](c)
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -56,6 +56,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -83,6 +84,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -110,6 +112,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -127,6 +130,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -154,6 +158,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -171,6 +176,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -188,6 +194,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -205,6 +212,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -222,6 +230,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
@@ -249,6 +258,7 @@ func Api() {
 		validate := validator.New()
 		validationErr := validate.Struct(request)
 		if validationErr != nil {
+			logging.FromContext(c.Request.Context()).WarnContext(c.Request.Context(), "request validation failed", "error", validationErr)
 			c.JSON(400, gin.H{"error": validationErr.Error()})
 			return
 		}
