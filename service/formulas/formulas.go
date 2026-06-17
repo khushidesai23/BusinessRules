@@ -1,6 +1,7 @@
 package formulas
 
 import (
+	"calculationengine/logging"
 	"calculationengine/models"
 	"calculationengine/service/dag"
 	"calculationengine/service/evaluator"
@@ -25,8 +26,15 @@ type Formula struct {
 }
 
 func CreateFormula(ctx context.Context, request models.CreateFormulaRequest) (*storage.ApiResponse, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "create formula requested",
+		"category_id", request.CategoryID,
+		"target_attribute_id", request.TargetAttribute,
+		"formula", request.Formula,
+	)
 	attributesInFormula, err := getAttributesFromFormula(request.Formula)
 	if err != nil {
+		logger.WarnContext(ctx, "formula token parsing failed", "formula", request.Formula, "error", err)
 		return &storage.ApiResponse{Message: err.Error(), Data: []any{}}, nil
 	}
 	attributesInFormula = utils.RemoveArrayDuplicates(attributesInFormula)
@@ -40,6 +48,7 @@ func CreateFormula(ctx context.Context, request models.CreateFormulaRequest) (*s
 	attributesNotExisting := utils.ArrayDifference(attributesInFormula, attributeNameAssignedToCategory)
 
 	if len(attributesNotExisting) != 0 {
+		logger.WarnContext(ctx, "formula rejected because attributes do not exist in category", "category_id", request.CategoryID, "missing_attributes", attributesNotExisting)
 		return &storage.ApiResponse{Message: fmt.Sprintf("%s Attributes does not exist", attributesNotExisting), Data: []any{}}, nil
 		//!Handle error
 	}
@@ -70,12 +79,13 @@ func CreateFormula(ctx context.Context, request models.CreateFormulaRequest) (*s
 	graph := generateGraphFromDependencies(attributeDependencies)
 	topologicalSortedAttributes, hasCycle := graph.TopologicalSort()
 	if hasCycle {
-		fmt.Println("Has Cycle")
+		logger.WarnContext(ctx, "formula rejected because dependency cycle was detected", "category_id", request.CategoryID, "target_attribute_id", request.TargetAttribute)
 		return &storage.ApiResponse{Message: "Cycle Detected", Data: []any{}}, nil
 	}
 
 	_, err2 := checkFormulaSyntaxErrors(request.Formula, attributesAssignedToCategory)
 	if err2 != nil {
+		logger.WarnContext(ctx, "formula syntax validation failed", "formula", request.Formula, "error", err2)
 		return &storage.ApiResponse{Message: err2.Error(), Data: []any{}}, nil
 	}
 
@@ -87,8 +97,15 @@ func CreateFormula(ctx context.Context, request models.CreateFormulaRequest) (*s
 		TargetAttributeID:               request.TargetAttribute,
 	})
 	if err1 != nil {
+		logger.ErrorContext(ctx, "save formula failed", "category_id", request.CategoryID, "target_attribute_id", request.TargetAttribute, "error", err1)
 		return &storage.ApiResponse{Message: "Something Went wrong", Data: []any{}}, nil
 	}
+	logger.InfoContext(ctx, "formula created",
+		"category_id", request.CategoryID,
+		"target_attribute_id", request.TargetAttribute,
+		"dependency_count", len(attributeIdsInFormula),
+		"topology_count", len(topologicalSortedAttributes),
+	)
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
 
@@ -97,9 +114,11 @@ func GetFormulasList(ctx context.Context) (*models.GetAllFormulasResponse, error
 	s := storage.NewStore(storage.DB)
 	data, err := s.GetFormulasList(ctx)
 	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "get formulas failed", "error", err)
 		response.Message = "Something went wrong"
 		return &response, nil
 	}
+	logging.FromContext(ctx).InfoContext(ctx, "formulas fetched", "count", len(data))
 	response.Message = "success"
 	response.Data = data
 	return &response, nil
@@ -141,7 +160,8 @@ func EvaluateFormula(ctx context.Context, request models.EvaluateFormulaRequest)
 	var store = storage.NewStore(storage.DB)
 	productDatas, err := store.GetProductData(ctx, request.ProductID)
 	if err != nil {
-		return response, nil
+		logging.FromContext(ctx).ErrorContext(ctx, "load product data for formula evaluation failed", "product_ids", request.ProductID, "error", err)
+		return response, err
 	}
 	categoryIds := utils.Map(productDatas, func(productData models.ProductDatasResult) int {
 		return productData.CategoryID
@@ -150,12 +170,14 @@ func EvaluateFormula(ctx context.Context, request models.EvaluateFormulaRequest)
 	formulaDependencies := store.GetAllFormulaDependencies(ctx, categoryIds)
 	attributesIdMap, err := store.GetAttributesIdDataMap(ctx, categoryIds)
 	if err != nil {
-
+		logging.FromContext(ctx).ErrorContext(ctx, "load attribute map for formula evaluation failed", "category_ids", categoryIds, "error", err)
+		return response, err
 	}
 	formulas := store.GetFormulas(ctx, categoryIds)
 	topologicalSortOrder, err := store.GetTopologicalSorting(ctx, categoryIds)
 	if err != nil {
-		return response, nil
+		logging.FromContext(ctx).ErrorContext(ctx, "load topological sort order failed", "category_ids", categoryIds, "error", err)
+		return response, err
 	}
 
 	for _, productId := range request.ProductID {
@@ -194,6 +216,12 @@ func EvaluateFormula(ctx context.Context, request models.EvaluateFormulaRequest)
 			}
 			obj := parseAndEvaluateFormula(formula[0].Expression, env)
 			if obj.Type() == evaluator.ERROR_OBJ {
+				logging.FromContext(ctx).WarnContext(ctx, "formula evaluation skipped because evaluation returned error",
+					"product_id", productId,
+					"category_id", productCategoryId,
+					"target_attribute_id", attributeId,
+					"error", obj.Inspect(),
+				)
 				continue
 			}
 			response = append(response, models.CreateProductParams{
@@ -207,6 +235,7 @@ func EvaluateFormula(ctx context.Context, request models.EvaluateFormulaRequest)
 		}
 
 	}
+	logging.FromContext(ctx).InfoContext(ctx, "formula evaluation completed", "product_ids", request.ProductID, "computed_records", len(response))
 	return response, nil
 }
 
@@ -247,7 +276,6 @@ func generateEnvironmentFromProductData(productData []models.ProductDatasResult)
 			env.Set(data.AttributeName, object)
 		case "string":
 			object := &evaluator.String{Value: string(data.Data)}
-			fmt.Println("Object: ", object)
 			env.Set(data.AttributeName, object)
 		case "float":
 			value, err := strconv.ParseFloat(data.Data, 64)
@@ -300,7 +328,9 @@ func (formula *Formula) validateAttributes() {
 func DeleteFormula(ctx context.Context, request models.DeleteFormulaRequest) (*storage.ApiResponse, error) {
 	s := storage.NewStore(storage.DB)
 	if err := s.DeleteFormula(ctx, request.CategoryID, request.TargetAttribute); err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete formula failed", "category_id", request.CategoryID, "target_attribute_id", request.TargetAttribute, "error", err)
 		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
 	}
+	logging.FromContext(ctx).InfoContext(ctx, "formula deleted", "category_id", request.CategoryID, "target_attribute_id", request.TargetAttribute)
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }

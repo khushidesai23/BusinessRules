@@ -1,6 +1,7 @@
 package product
 
 import (
+	"calculationengine/logging"
 	"calculationengine/models"
 	"calculationengine/service/formulas"
 	"calculationengine/service/utils"
@@ -14,6 +15,7 @@ import (
 )
 
 func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*storage.ApiResponse, error) {
+	logger := logging.FromContext(ctx)
 	s := storage.NewStore(storage.DB)
 	attributes, err := s.GetAttributesIdDataMap(ctx, []int{request.CategryID})
 	var id string
@@ -25,8 +27,15 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 		id = request.ProductID
 	}
 	if err != nil {
+		logger.ErrorContext(ctx, "load category attributes failed", "category_id", request.CategryID, "error", err)
 		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, nil
 	}
+	logger.InfoContext(ctx, "product upsert requested",
+		"category_id", request.CategryID,
+		"product_id", id,
+		"create", create,
+		"payload_count", len(request.ProductData),
+	)
 	var createProductParams []models.CreateProductParams
 	defaultAttributePresent := false
 
@@ -46,10 +55,12 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 			// For actual attributes (ID > 0), validate against the category's attributes
 			attribute, ok := attributes[data.AttributeID]
 			if !ok {
+				logger.WarnContext(ctx, "product upsert rejected because attribute is not assigned to category", "category_id", request.CategryID, "attribute_id", data.AttributeID)
 				return &storage.ApiResponse{Message: fmt.Sprintf("Attribute %d does not exist in this category", data.AttributeID), Data: []any{}}, nil
 			}
 			validationErr := validateData(value, attribute)
 			if validationErr != nil {
+				logger.WarnContext(ctx, "product upsert rejected because attribute validation failed", "attribute_id", data.AttributeID, "data_type", attribute.DataType, "error", validationErr)
 				return &storage.ApiResponse{Message: validationErr.Error(), Data: []any{}}, nil
 			}
 		}
@@ -64,18 +75,31 @@ func UpsertProduct(ctx context.Context, request models.CreateProductRequest) (*s
 	// Fixed: Require product name for new product creation
 	// Product name (attributeId=0) is mandatory to distinguish products
 	if create && !defaultAttributePresent {
+		logger.WarnContext(ctx, "product create rejected because product name is missing", "category_id", request.CategryID)
 		return &storage.ApiResponse{Message: "Please enter Product Name to create a new product", Data: []any{}}, nil
 	}
-	s.UpsertProduct(ctx, createProductParams)
+	if err := s.UpsertProduct(ctx, createProductParams); err != nil {
+		logger.ErrorContext(ctx, "product upsert failed", "product_id", id, "category_id", request.CategryID, "error", err)
+		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
+	}
+	logger.InfoContext(ctx, "product values stored", "product_id", id, "records", len(createProductParams))
 
 	// After saving product data, evaluate formulas to compute derived attributes
 	evaluateFormulaRequest := models.EvaluateFormulaRequest{
 		ProductID: []string{id},
 	}
-	evaluatedProductData, _ := formulas.EvaluateFormula(ctx, evaluateFormulaRequest)
-	fmt.Println(evaluatedProductData)
+	evaluatedProductData, err := formulas.EvaluateFormula(ctx, evaluateFormulaRequest)
+	if err != nil {
+		logger.ErrorContext(ctx, "product formula evaluation failed", "product_id", id, "error", err)
+		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
+	}
+	logger.InfoContext(ctx, "product formulas evaluated", "product_id", id, "computed_records", len(evaluatedProductData))
 	// Save computed formula results back to product
-	s.UpsertProduct(ctx, evaluatedProductData)
+	if err := s.UpsertProduct(ctx, evaluatedProductData); err != nil {
+		logger.ErrorContext(ctx, "persist computed product values failed", "product_id", id, "error", err)
+		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
+	}
+	logger.InfoContext(ctx, "product upsert completed", "product_id", id, "category_id", request.CategryID)
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
 
@@ -86,9 +110,11 @@ func GetProductList(ctx context.Context) (*models.GetProductListResponse, error)
 	s := storage.NewStore(storage.DB)
 	data, err := s.GetProductList(ctx)
 	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "get products failed", "error", err)
 		response.Message = "Something went wrong"
 		return &response, nil
 	}
+	logging.FromContext(ctx).InfoContext(ctx, "products fetched", "count", len(data))
 	response.Message = "success"
 	response.Data = data
 	return &response, nil
@@ -101,9 +127,11 @@ func GetSingleProductData(ctx context.Context, request models.GetProductDataRequ
 	s := storage.NewStore(storage.DB)
 	data, err := s.GetProductData(ctx, []string{request.ProductID})
 	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "get product data failed", "product_id", request.ProductID, "error", err)
 		response.Message = "Something went wrong"
 		return &response, nil
 	}
+	logging.FromContext(ctx).InfoContext(ctx, "product data fetched", "product_id", request.ProductID, "records", len(data))
 	response.Message = "success"
 	response.Data = data
 	return &response, nil
@@ -137,7 +165,9 @@ func validateData(value string, attribute storage.Attribute) error {
 func DeleteProduct(ctx context.Context, request models.DeleteProductRequest) (*storage.ApiResponse, error) {
 	s := storage.NewStore(storage.DB)
 	if err := s.DeleteProduct(ctx, request.ProductID); err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete product failed", "product_id", request.ProductID, "error", err)
 		return &storage.ApiResponse{Message: "Something went wrong", Data: []any{}}, err
 	}
+	logging.FromContext(ctx).InfoContext(ctx, "product deleted", "product_id", request.ProductID)
 	return &storage.ApiResponse{Message: "success", Data: []any{}}, nil
 }
