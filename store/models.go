@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"log"
+	"calculationengine/logging"
 	"time"
 )
 
@@ -99,7 +99,7 @@ func AutoMigrate() error {
 	// CategoryAttributeAssignment is a manual join table - must be created explicitly
 	if !DB.Migrator().HasTable(&CategoryAttributeAssignment{}) {
 		if err := DB.Migrator().CreateTable(&CategoryAttributeAssignment{}); err != nil {
-			log.Printf("AutoMigrate: failed to create category_attribute_assignments: %v", err)
+			logging.Default().Error("automigrate failed to create category_attribute_assignments", "error", err)
 			return err
 		}
 	}
@@ -109,21 +109,21 @@ func AutoMigrate() error {
 	if DB.Migrator().HasTable(&CategoryAttributeAssignment{}) {
 		if !DB.Migrator().HasColumn(&CategoryAttributeAssignment{}, "TopologicalSortOrder") {
 			if err := DB.Migrator().AddColumn(&CategoryAttributeAssignment{}, "TopologicalSortOrder"); err != nil {
-				log.Printf("AutoMigrate: failed to add column TopologicalSortOrder: %v", err)
+				logging.Default().Error("automigrate failed to add topological sort order column", "error", err)
 				return err
 			}
 		}
 		// ensure timestamp columns exist (use raw SQL to avoid GORM naming mismatches)
 		if err := DB.Exec("ALTER TABLE category_attribute_assignments ADD COLUMN IF NOT EXISTS created_at timestamptz").Error; err != nil {
-			log.Printf("AutoMigrate: failed to add column created_at: %v", err)
+			logging.Default().Error("automigrate failed to add created_at column", "error", err)
 			return err
 		}
 		if err := DB.Exec("ALTER TABLE category_attribute_assignments ADD COLUMN IF NOT EXISTS updated_at timestamptz").Error; err != nil {
-			log.Printf("AutoMigrate: failed to add column updated_at: %v", err)
+			logging.Default().Error("automigrate failed to add updated_at column", "error", err)
 			return err
 		}
 		if err := DB.Exec("ALTER TABLE category_attribute_assignments ADD COLUMN IF NOT EXISTS deleted_at timestamptz").Error; err != nil {
-			log.Printf("AutoMigrate: failed to add column deleted_at: %v", err)
+			logging.Default().Error("automigrate failed to add deleted_at column", "error", err)
 			return err
 		}
 	}
@@ -144,7 +144,7 @@ func AutoMigrate() error {
 	if DB.Migrator().HasTable(&Product{}) {
 		if !DB.Migrator().HasColumn(&Product{}, "Name") {
 			if err := DB.Migrator().AddColumn(&Product{}, "Name"); err != nil {
-				log.Printf("AutoMigrate: failed to add column Name to products: %v", err)
+				logging.Default().Error("automigrate failed to add name column to products", "error", err)
 				return err
 			}
 		}

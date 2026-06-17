@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"calculationengine/logging"
 	"calculationengine/models"
 	"context"
 	"fmt"
@@ -22,14 +23,13 @@ func NewStore(db *gorm.DB) *Store {
 }
 
 func (s *Store) CreateCategory(ctx context.Context, name string) error {
-	fmt.Println("Hello2")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "persist category started", "category_name", name)
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		category := Category{
 			Path: name,
 		}
-		fmt.Println("Hello3")
 		err := tx.Save(&category).Error
-		fmt.Println("err: ", err)
 		if err != nil {
 			return err
 		}
@@ -37,6 +37,11 @@ func (s *Store) CreateCategory(ctx context.Context, name string) error {
 		// (was causing FK violations because attribute id 0 does not exist).
 		return nil
 	})
+	if err != nil {
+		logger.ErrorContext(ctx, "persist category failed", "category_name", name, "error", err)
+		return err
+	}
+	logger.InfoContext(ctx, "persist category completed", "category_name", name)
 	return err
 }
 
@@ -83,6 +88,7 @@ func (s *Store) GetCategoryWiseCommonAttributes(ctx context.Context, params mode
 }
 
 func (s *Store) ChangeCategoryAttributeAssignment(ctx context.Context, params models.ChangeCategoryAttributeAssignmentRequest) error {
+	logger := logging.FromContext(ctx)
 	var assignments []CategoryAttributeAssignment
 	for _, catID := range params.Assign.CategoryIDs {
 		for _, attrID := range params.Assign.AttributeIDs {
@@ -111,11 +117,22 @@ func (s *Store) ChangeCategoryAttributeAssignment(ctx context.Context, params mo
 		}
 		return nil
 	})
+	if err != nil {
+		logger.ErrorContext(ctx, "persist category attribute assignment failed", "error", err)
+		return err
+	}
+	logger.InfoContext(ctx, "persist category attribute assignment completed",
+		"assigned_records", len(assignments),
+		"unassign_category_ids", params.UnAssign.CategoryIDs,
+		"unassign_attribute_ids", params.UnAssign.AttributeIDs,
+	)
 	return err
 }
 
 func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductParams) error {
+	logger := logging.FromContext(ctx)
 	if len(datas) == 0 {
+		logger.InfoContext(ctx, "upsert product skipped because there is no data")
 		return nil
 	}
 	var nameValues []string
@@ -163,6 +180,7 @@ func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductP
 			DO UPDATE SET name = EXCLUDED.name
 		`, nameQuery)
 		if err := s.DB.Exec(q).Error; err != nil {
+			logger.ErrorContext(ctx, "upsert product name rows failed", "error", err, "row_count", len(nameRows))
 			return err
 		}
 	}
@@ -180,9 +198,11 @@ func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductP
 				data = EXCLUDED.data
 		`, queryStr)
 		if err := s.DB.Exec(query).Error; err != nil {
+			logger.ErrorContext(ctx, "upsert product attribute rows failed", "error", err, "row_count", len(attrValues))
 			return err
 		}
 	}
+	logger.InfoContext(ctx, "upsert product completed", "records", len(datas), "name_rows", len(nameValues), "attribute_rows", len(attrValues))
 	return nil
 }
 
@@ -243,6 +263,7 @@ func (s *Store) GetAllFormulas(ctx context.Context, categoryIds []int) ([]models
 }
 
 func (s *Store) SaveFormula(ctx context.Context, params models.SaveFormulaParams) error {
+	logger := logging.FromContext(ctx)
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		gorm.G[CategoryAttributeAssignment](tx).Where("category_id = ?", params.CategoryID).Update(ctx, "topological_sort_order", nil)
 		for index, value := range params.TopologicallySortedAttributeIDs {
@@ -276,8 +297,14 @@ func (s *Store) SaveFormula(ctx context.Context, params models.SaveFormulaParams
 		return nil
 	})
 	if err != nil {
+		logger.ErrorContext(ctx, "persist formula failed", "category_id", params.CategoryID, "target_attribute_id", params.TargetAttributeID, "error", err)
 		return err
 	}
+	logger.InfoContext(ctx, "persist formula completed",
+		"category_id", params.CategoryID,
+		"target_attribute_id", params.TargetAttributeID,
+		"dependency_count", len(params.DependentAttributeIDs),
+	)
 	return nil
 }
 
@@ -371,17 +398,22 @@ func (s *Store) GetFormulasList(ctx context.Context) ([]models.FormulasListResul
 
 // DeleteCategory deletes a category by id (cascades to related records)
 func (s *Store) DeleteCategory(ctx context.Context, categoryId int) error {
-	return s.DB.Transaction(func(tx *gorm.DB) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ?", categoryId).Delete(&Category{}).Error; err != nil {
 			return err
 		}
 		return nil
 	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete category in store failed", "category_id", categoryId, "error", err)
+		return err
+	}
+	return nil
 }
 
 // DeleteAttribute removes an attribute and related assignments/formulas
 func (s *Store) DeleteAttribute(ctx context.Context, attributeId int) error {
-	return s.DB.Transaction(func(tx *gorm.DB) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ?", attributeId).Delete(&Attribute{}).Error; err != nil {
 			return err
 		}
@@ -399,21 +431,31 @@ func (s *Store) DeleteAttribute(ctx context.Context, attributeId int) error {
 		}
 		return nil
 	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete attribute in store failed", "attribute_id", attributeId, "error", err)
+		return err
+	}
+	return nil
 }
 
 // DeleteProduct deletes a product and its attribute rows
 func (s *Store) DeleteProduct(ctx context.Context, productId string) error {
-	return s.DB.Transaction(func(tx *gorm.DB) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ?", productId).Delete(&Product{}).Error; err != nil {
 			return err
 		}
 		return nil
 	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete product in store failed", "product_id", productId, "error", err)
+		return err
+	}
+	return nil
 }
 
 // DeleteFormula deletes a saved formula and its dependencies
 func (s *Store) DeleteFormula(ctx context.Context, categoryId int, targetAttributeId int) error {
-	return s.DB.Transaction(func(tx *gorm.DB) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("category_id = ? AND target_attribute_id = ?", categoryId, targetAttributeId).Delete(&Formulas{}).Error; err != nil {
 			return err
 		}
@@ -422,4 +464,9 @@ func (s *Store) DeleteFormula(ctx context.Context, categoryId int, targetAttribu
 		}
 		return nil
 	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete formula in store failed", "category_id", categoryId, "target_attribute_id", targetAttributeId, "error", err)
+		return err
+	}
+	return nil
 }

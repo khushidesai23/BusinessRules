@@ -2,15 +2,16 @@ package storage
 
 import (
 	"calculationengine/constants"
+	"calculationengine/logging"
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
 )
 
 var DB *gorm.DB
 
 func Connect() {
+	logger := logging.Default()
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		constants.AppConfig.DBHost,
 		constants.AppConfig.DBUser,
@@ -23,7 +24,8 @@ func Connect() {
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalln(err)
+		logger.Error("database connection failed", "error", err)
+		panic(err)
 	}
 
 }
