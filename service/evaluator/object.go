@@ -4,11 +4,11 @@ import "fmt"
 
 const (
 	INTEGER_OBJ = "INTEGER"
-	FLOAT_OBJ = "FLOAT"
+	FLOAT_OBJ   = "FLOAT"
 	BOOLEAN_OBJ = "BOOLEAN"
-	ERROR_OBJ = "ERROR"
-	STRING_OBJ = "STRING"
-	NULL_OBJ = "NULL"
+	ERROR_OBJ   = "ERROR"
+	STRING_OBJ  = "STRING"
+	NULL_OBJ    = "NULL"
 )
 
 type ObjectType string
@@ -18,9 +18,9 @@ type Object interface {
 	Inspect() string
 }
 
-type Null struct {}
+type Null struct{}
 
-func(n *Null) Type() ObjectType {
+func (n *Null) Type() ObjectType {
 	return NULL_OBJ
 }
 
@@ -92,18 +92,17 @@ type Environment struct {
 	store map[string]Object
 }
 
-func NewEnvironment() *Environment{
+func NewEnvironment() *Environment {
 	s := make(map[string]Object)
-	return &Environment{store:s}
+	return &Environment{store: s}
 }
 
-func (e *Environment) Get(name string)(Object, bool){
+func (e *Environment) Get(name string) (Object, bool) {
 	value, ok := e.store[name]
 	return value, ok
 }
 
-func (e *Environment) Set (name string, value Object) Object {
+func (e *Environment) Set(name string, value Object) Object {
 	e.store[name] = value
 	return value
 }
-

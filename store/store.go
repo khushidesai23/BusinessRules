@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"calculationengine/logging"
 	"calculationengine/models"
 	"context"
 	"fmt"
@@ -17,28 +18,30 @@ type Store struct {
 	DB *gorm.DB
 }
 
-func NewStore(db *gorm.DB) *Store{
-	return &Store{DB:db}
+func NewStore(db *gorm.DB) *Store {
+	return &Store{DB: db}
 }
 
-func (s *Store) CreateCategory(ctx context.Context, name string) error{
-	fmt.Println("Hello2")
+func (s *Store) CreateCategory(ctx context.Context, name string) error {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "persist category started", "category_name", name)
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		category := Category{
-			Path:name,
+			Path: name,
 		}
-		fmt.Println("Hello3")
 		err := tx.Save(&category).Error
-		fmt.Println("err: ", err)
-		if err!=nil{
+		if err != nil {
 			return err
 		}
-		err2 := tx.Create(&CategoryAttributeAssignment{
-			CategoryID:category.ID,
-			AttributeID: 0,
-		}).Error
-		return err2
+		// Do not create a CategoryAttributeAssignment with AttributeID 0
+		// (was causing FK violations because attribute id 0 does not exist).
+		return nil
 	})
+	if err != nil {
+		logger.ErrorContext(ctx, "persist category failed", "category_name", name, "error", err)
+		return err
+	}
+	logger.InfoContext(ctx, "persist category completed", "category_name", name)
 	return err
 }
 
@@ -85,11 +88,12 @@ func (s *Store) GetCategoryWiseCommonAttributes(ctx context.Context, params mode
 }
 
 func (s *Store) ChangeCategoryAttributeAssignment(ctx context.Context, params models.ChangeCategoryAttributeAssignmentRequest) error {
+	logger := logging.FromContext(ctx)
 	var assignments []CategoryAttributeAssignment
 	for _, catID := range params.Assign.CategoryIDs {
 		for _, attrID := range params.Assign.AttributeIDs {
 			assignments = append(assignments, CategoryAttributeAssignment{
-				CategoryID: uint(catID),
+				CategoryID:  uint(catID),
 				AttributeID: uint(attrID),
 			})
 		}
@@ -113,32 +117,92 @@ func (s *Store) ChangeCategoryAttributeAssignment(ctx context.Context, params mo
 		}
 		return nil
 	})
+	if err != nil {
+		logger.ErrorContext(ctx, "persist category attribute assignment failed", "error", err)
+		return err
+	}
+	logger.InfoContext(ctx, "persist category attribute assignment completed",
+		"assigned_records", len(assignments),
+		"unassign_category_ids", params.UnAssign.CategoryIDs,
+		"unassign_attribute_ids", params.UnAssign.AttributeIDs,
+	)
 	return err
 }
 
 func (s *Store) UpsertProduct(ctx context.Context, datas []models.CreateProductParams) error {
+	logger := logging.FromContext(ctx)
 	if len(datas) == 0 {
+		logger.InfoContext(ctx, "upsert product skipped because there is no data")
 		return nil
 	}
-	var insertValues []string
+	var nameValues []string
+	var attrValues []string
+
+	// Separate product names (attributeId=0) from attribute values (attributeId>0)
+	// This distinction is critical because:
+	// - Product names (attributeId=0) are stored in the Name column
+	// - Regular attributes are stored in the Data column
+	// - Product names don't have corresponding Attribute records (avoiding FK violations)
 	for _, data := range datas {
-		insertValues = append(insertValues, fmt.Sprintf(`('%s', %d, %d, '%s')`, data.ID, data.CategoryID, data.AttributeID, data.Data)) 
+		if data.AttributeID == 0 {
+			// Product name entry - will include attributeId=0
+			nameValues = append(nameValues, fmt.Sprintf("('%s', %d, '%s')", data.ID, data.CategoryID, data.Data))
+		} else {
+			// Attribute value entry - includes attributeId
+			attrValues = append(attrValues, fmt.Sprintf("('%s', %d, %d, '%s')", data.ID, data.CategoryID, data.AttributeID, data.Data))
+		}
 	}
-	queryStr := strings.Join(insertValues, ",")
-	query := fmt.Sprintf(`
-		INSERT INTO products (id, category_id, attribute_id, data)
-		VALUES
-			%s
-		ON CONFLICT (id, category_id, attribute_id)
-		DO UPDATE SET
-			data = EXCLUDED.data
-	`, queryStr)
-	fmt.Println(query)
-	err := s.DB.Exec(query).Error
-	fmt.Println(err)
-	if err != nil {
-		return err
+
+	// Upsert product names (id, category_id, name)
+	if len(nameValues) > 0 {
+		// include attribute_id = 0 for name rows so they satisfy NOT NULL and primary key
+		// nameValues currently formatted as ('id', category_id, 'name') — rewrite with attribute_id = 0
+		var nameRows []string
+		for _, v := range nameValues {
+			// v is like ( 'id', 6, 'pen' ) -> insert attribute_id = 0 after category_id
+			// we'll transform by injecting , 0 after the second comma position
+			// simpler: rebuild from original data by splitting on comma
+			parts := strings.SplitN(v, ",", 3)
+			if len(parts) == 3 {
+				// parts[0]="('id'", parts[1]=" 6", parts[2]=" 'pen')"
+				newRow := fmt.Sprintf("%s,%s,0,%s", strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2]))
+				nameRows = append(nameRows, newRow)
+			} else {
+				// fallback: append with attribute_id 0 manually
+				nameRows = append(nameRows, strings.Replace(v, ")", ", 0)", 1))
+			}
+		}
+		nameQuery := strings.Join(nameRows, ",")
+		q := fmt.Sprintf(`
+			INSERT INTO products (id, category_id, attribute_id, name)
+			VALUES %s
+			ON CONFLICT ON CONSTRAINT products_pkey
+			DO UPDATE SET name = EXCLUDED.name
+		`, nameQuery)
+		if err := s.DB.Exec(q).Error; err != nil {
+			logger.ErrorContext(ctx, "upsert product name rows failed", "error", err, "row_count", len(nameRows))
+			return err
+		}
 	}
+
+	// Upsert attribute values (id, category_id, attribute_id, data)
+	// These rows have attributeId > 0 and store actual attribute values in the Data column
+	if len(attrValues) > 0 {
+		queryStr := strings.Join(attrValues, ",")
+		query := fmt.Sprintf(`
+			INSERT INTO products (id, category_id, attribute_id, data)
+			VALUES
+				%s
+			ON CONFLICT (id, category_id, attribute_id)
+			DO UPDATE SET
+				data = EXCLUDED.data
+		`, queryStr)
+		if err := s.DB.Exec(query).Error; err != nil {
+			logger.ErrorContext(ctx, "upsert product attribute rows failed", "error", err, "row_count", len(attrValues))
+			return err
+		}
+	}
+	logger.InfoContext(ctx, "upsert product completed", "records", len(datas), "name_rows", len(nameValues), "attribute_rows", len(attrValues))
 	return nil
 }
 
@@ -160,7 +224,7 @@ func (s *Store) GetAllFormulaDependencies(ctx context.Context, categoryIds []int
 	return formulaDependencies
 }
 
-func (s *Store) GetAttributesIdDataMap(ctx context.Context, categoryIds []int) (map[int]Attribute, error){
+func (s *Store) GetAttributesIdDataMap(ctx context.Context, categoryIds []int) (map[int]Attribute, error) {
 	var attributes []Attribute
 	err := s.DB.Raw(`
 		select 
@@ -199,39 +263,48 @@ func (s *Store) GetAllFormulas(ctx context.Context, categoryIds []int) ([]models
 }
 
 func (s *Store) SaveFormula(ctx context.Context, params models.SaveFormulaParams) error {
+	logger := logging.FromContext(ctx)
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		gorm.G[CategoryAttributeAssignment](tx).Where("category_id = ?", params.CategoryID).Update(ctx, "topological_sort_order", nil)
-		for index, value := range params.TopologicallySortedAttributeIDs{
+		for index, value := range params.TopologicallySortedAttributeIDs {
 			gorm.G[CategoryAttributeAssignment](tx).Where("category_id = ? AND attribute_id = ?", params.CategoryID, value).Update(ctx, "topological_sort_order", index)
 		}
 		tx.Save(&Formulas{
-			CategoryID: uint(params.CategoryID),
-			Expression: params.Formula,
+			CategoryID:        uint(params.CategoryID),
+			Expression:        params.Formula,
 			TargetAttributeID: uint(params.TargetAttributeID),
 		})
 		var formulaDependencies []FormulaDependencies
-		for _, dependentAttributeId := range params.DependentAttributeIDs{
+		for _, dependentAttributeId := range params.DependentAttributeIDs {
 			formulaDependency := FormulaDependencies{
-				CategoryID: uint(params.CategoryID),
-				TargetAttributeID: uint(params.TargetAttributeID),
+				CategoryID:           uint(params.CategoryID),
+				TargetAttributeID:    uint(params.TargetAttributeID),
 				DependentAttributeID: uint(dependentAttributeId),
 			}
-			formulaDependencies = append(formulaDependencies, formulaDependency)	
+			formulaDependencies = append(formulaDependencies, formulaDependency)
 		}
 		tx.Where(&FormulaDependencies{
-			CategoryID: uint(params.CategoryID),
+			CategoryID:        uint(params.CategoryID),
 			TargetAttributeID: uint(params.TargetAttributeID),
 		}).Delete(&FormulaDependencies{})
 
-		result := tx.Create(&formulaDependencies)
-		if result.Error != nil {
-			return result.Error
+		if len(formulaDependencies) > 0 {
+			result := tx.Create(&formulaDependencies)
+			if result.Error != nil {
+				return result.Error
+			}
 		}
 		return nil
 	})
 	if err != nil {
+		logger.ErrorContext(ctx, "persist formula failed", "category_id", params.CategoryID, "target_attribute_id", params.TargetAttributeID, "error", err)
 		return err
 	}
+	logger.InfoContext(ctx, "persist formula completed",
+		"category_id", params.CategoryID,
+		"target_attribute_id", params.TargetAttributeID,
+		"dependency_count", len(params.DependentAttributeIDs),
+	)
 	return nil
 }
 
@@ -259,31 +332,24 @@ func (s *Store) GetTopologicalSorting(ctx context.Context, categoryIds []int) ([
 
 func (s *Store) GetProductData(ctx context.Context, productIds []string) ([]models.ProductDatasResult, error) {
 	var productDatas []models.ProductDatasResult
-	
+
+	// Enhanced: Query now returns product name as attributeId 0, and other attributes joined to attributes table
+	// The query has two parts joined with UNION ALL:
+	// 1. Get product names from products.name column (attributeId=0)
+	// 2. Get attribute values by joining with attributes table (attributeId>0)
+	// This provides a unified interface where product names appear as a special "attribute" with ID 0
 	err := s.DB.Raw(`
-		WITH product_data AS (
-			SELECT 
-				id, 
-				data, 
-				attribute_id, 
-				category_id 
-			FROM 
-				products 
-			WHERE 
-				id IN ?
-		)
-		SELECT 
-			product_data.id, 
-			product_data.data, 
-			attributes.id AS "attributeId", 
-			attributes.name AS "attributeName", 
-			attributes.data_type AS "dataType",
-			product_data.category_id AS "categoryId"
-		FROM 
-			product_data 
-			JOIN attributes ON product_data.attribute_id = attributes.id
-	`, productIds).Scan(&productDatas).Error
-	if err != nil{
+		SELECT p.id, p.name as data, 0 as "attributeId", 'name' as "attributeName", 'string' as "dataType", p.category_id as "categoryId"
+		FROM products p
+		WHERE p.id IN ?
+		GROUP BY p.id, p.name, p.category_id
+		UNION ALL
+		SELECT pr.id, pr.data, a.id as "attributeId", a.name as "attributeName", a.data_type as "dataType", pr.category_id as "categoryId"
+		FROM products pr
+		JOIN attributes a ON pr.attribute_id = a.id
+		WHERE pr.id IN ?
+	`, productIds, productIds).Scan(&productDatas).Error
+	if err != nil {
 		return []models.ProductDatasResult{}, err
 	}
 	return productDatas, nil
@@ -291,28 +357,19 @@ func (s *Store) GetProductData(ctx context.Context, productIds []string) ([]mode
 
 func (s *Store) GetProductList(ctx context.Context) ([]models.ProductListResult, error) {
 	var productList []models.ProductListResult
+
+	// Fixed: Use MAX(p.name) to handle the fact that a product has multiple rows in the products table
+	// (one for each attribute: name + all attribute values). We want to get the product name once.
+	// GROUP BY is required when selecting MAX() to aggregate correctly by product (id, category)
+	// Note: Each product ID appears once per attribute + once for the name row,
+	// so we need to group and aggregate to get a unique product record with its name
 	err := s.DB.Raw(`
-		WITH product_data AS (
-			SELECT 
-				id, 
-				data, 
-				attribute_id, 
-				category_id 
-			FROM 
-				products 
-			WHERE 
-				attribute_id = 0
-		)
-		SELECT 
-			product_data.id, 
-			product_data.data as name, 
-			categories.path as "categoryPath",
-			categories.id as "categoryId"
-		FROM 
-			product_data 
-			JOIN categories ON product_data.category_id = categories.id
+		SELECT p.id, MAX(p.name) as name, c.path as "categoryPath", c.id as "categoryId"
+		FROM products p
+		JOIN categories c ON p.category_id = c.id
+		GROUP BY p.id, c.path, c.id
 	`).Scan(&productList).Error
-	if err != nil{
+	if err != nil {
 		return []models.ProductListResult{}, err
 	}
 	return productList, nil
@@ -333,9 +390,83 @@ func (s *Store) GetFormulasList(ctx context.Context) ([]models.FormulasListResul
 			join categories c on f.category_id = c.id
 
 	`).Scan(&formulaList).Error
-	if err != nil{
+	if err != nil {
 		return []models.FormulasListResult{}, err
 	}
 	return formulaList, nil
 }
 
+// DeleteCategory deletes a category by id (cascades to related records)
+func (s *Store) DeleteCategory(ctx context.Context, categoryId int) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", categoryId).Delete(&Category{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete category in store failed", "category_id", categoryId, "error", err)
+		return err
+	}
+	return nil
+}
+
+// DeleteAttribute removes an attribute and related assignments/formulas
+func (s *Store) DeleteAttribute(ctx context.Context, attributeId int) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", attributeId).Delete(&Attribute{}).Error; err != nil {
+			return err
+		}
+		// Remove category assignments referencing this attribute
+		if err := tx.Where("attribute_id = ?", attributeId).Delete(&CategoryAttributeAssignment{}).Error; err != nil {
+			return err
+		}
+		// Remove formulas that target this attribute
+		if err := tx.Where("target_attribute_id = ?", attributeId).Delete(&Formulas{}).Error; err != nil {
+			return err
+		}
+		// Remove formula dependency entries where attribute is dependent
+		if err := tx.Where("dependent_attribute_id = ? OR target_attribute_id = ?", attributeId, attributeId).Delete(&FormulaDependencies{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete attribute in store failed", "attribute_id", attributeId, "error", err)
+		return err
+	}
+	return nil
+}
+
+// DeleteProduct deletes a product and its attribute rows
+func (s *Store) DeleteProduct(ctx context.Context, productId string) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", productId).Delete(&Product{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete product in store failed", "product_id", productId, "error", err)
+		return err
+	}
+	return nil
+}
+
+// DeleteFormula deletes a saved formula and its dependencies
+func (s *Store) DeleteFormula(ctx context.Context, categoryId int, targetAttributeId int) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("category_id = ? AND target_attribute_id = ?", categoryId, targetAttributeId).Delete(&Formulas{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("category_id = ? AND target_attribute_id = ?", categoryId, targetAttributeId).Delete(&FormulaDependencies{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		logging.FromContext(ctx).ErrorContext(ctx, "delete formula in store failed", "category_id", categoryId, "target_attribute_id", targetAttributeId, "error", err)
+		return err
+	}
+	return nil
+}

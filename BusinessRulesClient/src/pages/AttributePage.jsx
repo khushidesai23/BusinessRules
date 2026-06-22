@@ -69,12 +69,13 @@ export default function AttributePage() {
                                     <th>ID</th>
                                     <th>Name</th>
                                     <th>Data Type</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {attributes.length === 0 ? (
                                     <tr>
-                                        <td colSpan="3" style={{ textAlign: 'center', padding: '2rem' }}>
+                                        <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
                                             No attributes found. Create your first one!
                                         </td>
                                     </tr>
@@ -90,6 +91,14 @@ export default function AttributePage() {
                                             </td>
                                             <td>
                                                 <span className="badge badge-purple">{attr.dataType}</span>
+                                            </td>
+                                            <td>
+                                                <button className="btn btn-error btn-sm" onClick={async () => {
+                                                    if (!window.confirm('Delete this attribute?')) return;
+                                                    const res = await AttributeAPI.delete(attr.id);
+                                                    if (res.message === 'success') fetchAttributes();
+                                                    else setError(res.message);
+                                                }}>Delete</button>
                                             </td>
                                         </tr>
                                     ))

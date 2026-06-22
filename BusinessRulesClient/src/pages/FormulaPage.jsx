@@ -25,6 +25,15 @@ export default function FormulaPage() {
         setLoading(false);
     };
 
+    const handleDeleteFormula = async (categoryId, targetAttributeId) => {
+        if (!window.confirm('Delete this formula?')) return;
+        setLoading(true);
+        const res = await FormulaAPI.delete(categoryId, targetAttributeId);
+        if (res.message === 'success') fetchFormulas();
+        else setError(res.message);
+        setLoading(false);
+    };
+
     return (
         <div className="page-container">
             <div className="flex justify-between items-center" style={{ marginBottom: '2rem' }}>
@@ -81,6 +90,9 @@ export default function FormulaPage() {
                                         <td>
                                             <button className="btn btn-secondary" onClick={() => navigate(`/formula/${form.categoryId}`)}>
                                                 Edit
+                                            </button>
+                                            <button className="btn btn-error ml-2" onClick={() => handleDeleteFormula(form.categoryId, form.targetAttributeID || form.targetAttributeId)}>
+                                                Delete
                                             </button>
                                         </td>
                                     </tr>

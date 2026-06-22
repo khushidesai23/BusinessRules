@@ -40,6 +40,18 @@ export default function CategoryPage() {
         setIsAdding(false);
     };
 
+    const handleDeleteCategory = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this category?')) return;
+        setLoading(true);
+        const res = await CategoryAPI.delete(id);
+        if (res.message === 'success') {
+            fetchCategories();
+        } else {
+            setError(res.message);
+        }
+        setLoading(false);
+    };
+
     return (
         <div className="page-container">
             <div className="flex justify-between items-center" style={{ marginBottom: '2rem' }}>
@@ -64,6 +76,7 @@ export default function CategoryPage() {
                                 <tr>
                                     <th>ID</th>
                                     <th>Name</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -78,6 +91,9 @@ export default function CategoryPage() {
                                         <tr key={cat.id}>
                                             <td>{cat.id}</td>
                                             <td>{cat.name}</td>
+                                            <td>
+                                                <button className="btn btn-error btn-sm" onClick={() => handleDeleteCategory(cat.id)}>Delete</button>
+                                            </td>
                                         </tr>
                                     ))
                                 )}

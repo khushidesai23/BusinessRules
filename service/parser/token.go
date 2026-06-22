@@ -1,54 +1,56 @@
 package parser
 
 import (
-	// "fmt"
+// "fmt"
 )
 
 type TokenType string
 
-type Token struct{
+type Token struct {
 	TokenValue string
-	TokenType TokenType
+	TokenType  TokenType
 }
 
 const (
 	ILLEGAL TokenType = "ILLEGAL"
-	EOF TokenType = "EOF"
+	EOF     TokenType = "EOF"
 	// Identifiers + literals
 	IDENT TokenType = "Ident" // add, foobar, x, y, ...
-	
-	INT TokenType = "Int" // 1343456
-	FLOAT TokenType = "Float"
+
+	INT    TokenType = "Int" // 1343456
+	FLOAT  TokenType = "Float"
 	STRING TokenType = "String"
-	BOOL TokenType = "Boolean"
+	BOOL   TokenType = "Boolean"
 	// Operators
-	PLUS TokenType= "+"
-	MINUS TokenType= "-"
-	ASTERISK TokenType= "*"
-	SLASH TokenType= "/"
+	PLUS     TokenType = "+"
+	MINUS    TokenType = "-"
+	ASTERISK TokenType = "*"
+	SLASH    TokenType = "/"
+	MODULO   TokenType = "%"
+	POWER    TokenType = "^"
 
-	IF TokenType= "IF"
+	IF TokenType = "IF"
 
-	EQ TokenType= "="
+	EQ     TokenType = "="
 	NOT_EQ TokenType = "<>"
 
-	// Delimiters
-	COMMA TokenType= ","
-	LPAREN TokenType= "("
-	RPAREN TokenType= ")"
+	// Built-in Functions
+	MIN   TokenType = "MIN"
+	MAX   TokenType = "MAX"
+	ROUND TokenType = "ROUND"
 
-	LT TokenType= "<"
-	GT TokenType= ">"
+	// Delimiters
+	COMMA  TokenType = ","
+	LPAREN TokenType = "("
+	RPAREN TokenType = ")"
+
+	LT TokenType = "<"
+	GT TokenType = ">"
 )
 
 // ParanthesisTokens = []string{"(", ")"}
 // 	OperatorTokens = []string{"+", "/", "-", "*"}
 // 	AttributesAndConstantTokens = []string{"Ident", "Int", "Float", "String"}
-
-
-
-
-
 
 // func tokenizer(formula string) []Token {
 // 	var s scanner.Scanner
@@ -73,7 +75,7 @@ const (
 
 // func tokenValidator(tokens []Token){
 // 	AcceptedTokens := constants.AcceptedTokens
-// 	errorMessages := []string{} 
+// 	errorMessages := []string{}
 // 	for _, token := range tokens {
 // 		if !slices.Contains(AcceptedTokens, token.TokenType){
 // 			errorMessages = append(errorMessages, token.TokenValue + ` is not allowed in formula`)

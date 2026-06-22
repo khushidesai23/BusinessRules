@@ -6,17 +6,17 @@ import (
 	"text/scanner"
 )
 
-type Lexer struct{
-	input string
-	position int
-	readPosition int
-	ch string
-	scannerTokenType rune
-	s scanner.Scanner
+type Lexer struct {
+	input                string
+	position             int
+	readPosition         int
+	ch                   string
+	scannerTokenType     rune
+	s                    scanner.Scanner
 	peekScannerTokenType rune
 }
 
-func NewLexer(input string) *Lexer{
+func NewLexer(input string) *Lexer {
 	l := &Lexer{input: input}
 	var s scanner.Scanner
 	s.Init(strings.NewReader(l.input))
@@ -25,7 +25,7 @@ func NewLexer(input string) *Lexer{
 	return l
 }
 
-func (l *Lexer) readChar(){
+func (l *Lexer) readChar() {
 	tok := l.s.Scan()
 	l.ch = l.s.TokenText()
 	l.scannerTokenType = tok //scanner.TokenString(tok)
@@ -35,62 +35,72 @@ func (l *Lexer) readChar(){
 }
 
 func newToken(tokenType TokenType, ch string) Token {
-	if tokenType == STRING{
+	if tokenType == STRING {
 		ch = strings.Trim(ch, `"`)
 	}
-	return Token{ TokenType: tokenType, TokenValue: ch }
+	return Token{TokenType: tokenType, TokenValue: ch}
 }
 
 func (l *Lexer) NextToken() Token {
 	var tok Token
 	switch l.scannerTokenType {
-		case '(':
-			tok = newToken(LPAREN, l.ch)
-		case ')':
-			tok = newToken(RPAREN, l.ch)
-		case ',':
-			tok = newToken(COMMA, l.ch)
-		case scanner.Ident:
-			switch l.ch {
-				case "IF":
-					tok = newToken(IF, l.ch)
-				case "TRUE":
-					tok = newToken(BOOL, l.ch)
-				case "FALSE":
-					tok = newToken(BOOL, l.ch)
-				default:
-					tok = newToken(IDENT, l.ch)
-			}
-		case '+':
-			tok = newToken(PLUS, l.ch)
-		case '-':
-			tok = newToken(MINUS, l.ch)
-		case '*':
-			tok = newToken(ASTERISK, l.ch)
-		case '/':
-			tok = newToken(SLASH, l.ch)
-		case scanner.EOF:
-			tok = newToken(EOF, l.ch)
-		case scanner.Int:
-			tok = newToken(INT, l.ch)
-		case scanner.Float:
-			tok = newToken(FLOAT, l.ch)
-		case scanner.String:
-			tok = newToken(STRING, l.ch)
-		case '<':
-			switch l.peekScannerTokenType {
-				case '>':
-					tok = newToken(NOT_EQ, "<>")
-					l.readChar()
-				default:
-					tok = newToken(LT, l.ch)
-			}
-		case '>':
-			tok = newToken(GT, l.ch)
-		case '=':
-			tok = newToken(EQ, l.ch)
+	case '(':
+		tok = newToken(LPAREN, l.ch)
+	case ')':
+		tok = newToken(RPAREN, l.ch)
+	case ',':
+		tok = newToken(COMMA, l.ch)
+	case scanner.Ident:
+		switch l.ch {
+		case "IF":
+			tok = newToken(IF, l.ch)
+		case "MIN":
+			tok = newToken(MIN, l.ch)
+		case "MAX":
+			tok = newToken(MAX, l.ch)
+		case "ROUND":
+			tok = newToken(ROUND, l.ch)
+		case "TRUE":
+			tok = newToken(BOOL, l.ch)
+		case "FALSE":
+			tok = newToken(BOOL, l.ch)
 		default:
-			tok = newToken(ILLEGAL, l.ch)
+			tok = newToken(IDENT, l.ch)
+		}
+	case '+':
+		tok = newToken(PLUS, l.ch)
+	case '-':
+		tok = newToken(MINUS, l.ch)
+	case '*':
+		tok = newToken(ASTERISK, l.ch)
+	case '/':
+		tok = newToken(SLASH, l.ch)
+	case '%':
+		tok = newToken(MODULO, l.ch)
+	case '^':
+		tok = newToken(POWER, l.ch)
+	case scanner.EOF:
+		tok = newToken(EOF, l.ch)
+	case scanner.Int:
+		tok = newToken(INT, l.ch)
+	case scanner.Float:
+		tok = newToken(FLOAT, l.ch)
+	case scanner.String:
+		tok = newToken(STRING, l.ch)
+	case '<':
+		switch l.peekScannerTokenType {
+		case '>':
+			tok = newToken(NOT_EQ, "<>")
+			l.readChar()
+		default:
+			tok = newToken(LT, l.ch)
+		}
+	case '>':
+		tok = newToken(GT, l.ch)
+	case '=':
+		tok = newToken(EQ, l.ch)
+	default:
+		tok = newToken(ILLEGAL, l.ch)
 	}
 	l.readChar()
 	return tok

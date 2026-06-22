@@ -152,6 +152,27 @@ export default function FormulaDetailsPage() {
         setSaving(false);
     };
 
+    const handleDelete = async () => {
+        if (isNew) return;
+        if (selectedCategories.length === 0 || !targetAttributeId) {
+            setError('Select categories and target attribute to delete formula');
+            return;
+        }
+        if (!window.confirm('Delete this formula for selected categories?')) return;
+        setSaving(true);
+        let hasError = false;
+        for (const catId of selectedCategories) {
+            const res = await FormulaAPI.delete(catId, parseInt(targetAttributeId, 10));
+            if (res.message !== 'success') {
+                setError(`Failed for category ${catId}: ` + res.message);
+                hasError = true;
+                break;
+            }
+        }
+        if (!hasError) navigate('/formula');
+        setSaving(false);
+    };
+
     return (
         <div className="page-container">
             <div className="flex justify-between items-center" style={{ marginBottom: '2rem' }}>
@@ -161,14 +182,21 @@ export default function FormulaDetailsPage() {
                     </button>
                     <h1>{isNew ? 'Create Formula' : 'Edit Formula'}</h1>
                 </div>
-                <button
-                    className="btn btn-primary"
-                    onClick={handleSave}
-                    disabled={saving || selectedCategories.length === 0}
-                >
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    {saving ? 'Saving...' : 'Save Formula'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    {!isNew && (
+                        <button className="btn btn-error" onClick={handleDelete} disabled={saving}>
+                            Delete
+                        </button>
+                    )}
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleSave}
+                        disabled={saving || selectedCategories.length === 0}
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        {saving ? 'Saving...' : 'Save Formula'}
+                    </button>
+                </div>
             </div>
 
             {error && (
